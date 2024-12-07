@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,8 +25,8 @@ func NewSSEServerTransport(endpoint string, w http.ResponseWriter) (*SSEServerTr
 }
 
 // Start initializes the SSE connection
-func (s *SSEServerTransport) Start() error {
-	return s.transport.Start()
+func (s *SSEServerTransport) Start(ctx context.Context) error {
+	return s.transport.Start(ctx)
 }
 
 // HandlePostMessage processes an incoming POST request containing a JSON-RPC message
@@ -58,19 +59,19 @@ func (s *SSEServerTransport) Close() error {
 	return s.transport.Close()
 }
 
-// OnClose sets the callback for when the connection is closed
-func (s *SSEServerTransport) OnClose(fn func()) {
-	s.transport.OnClose = fn
+// SetCloseHandler sets the callback for when the connection is closed
+func (s *SSEServerTransport) SetCloseHandler(handler func()) {
+	s.transport.SetCloseHandler(handler)
 }
 
-// OnError sets the callback for when an error occurs
-func (s *SSEServerTransport) OnError(fn func(error)) {
-	s.transport.OnError = fn
+// SetErrorHandler sets the callback for when an error occurs
+func (s *SSEServerTransport) SetErrorHandler(handler func(error)) {
+	s.transport.SetErrorHandler(handler)
 }
 
-// OnMessage sets the callback for when a message is received
-func (s *SSEServerTransport) OnMessage(fn func(JSONRPCMessage)) {
-	s.transport.OnMessage = fn
+// SetMessageHandler sets the callback for when a message is received
+func (s *SSEServerTransport) SetMessageHandler(handler func(JSONRPCMessage)) {
+	s.transport.SetMessageHandler(handler)
 }
 
 // SessionID returns the unique session identifier for this transport

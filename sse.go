@@ -35,12 +35,12 @@ Usage Example:
     }
 
     // Set up message handling
-    transport.OnMessage = func(msg JSONRPCMessage) {
+    transport.SetMessageHandler(func(msg JSONRPCMessage) {
         // Handle incoming messages
-    }
+    })
 
     // Start the SSE connection
-    if err := transport.Start(); err != nil {
+    if err := transport.Start(context.Background()); err != nil {
         log.Fatal(err)
     }
 
@@ -58,6 +58,7 @@ Usage Example:
 package mcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -80,9 +81,9 @@ type SSETransport struct {
 	isConnected bool
 
 	// Callbacks
-	OnClose    func()
-	OnError    func(error)
-	OnMessage  func(JSONRPCMessage)
+	closeHandler   func()
+	errorHandler   func(error)
+	messageHandler func(JSONRPCMessage)
 }
 
 // NewSSETransport creates a new SSE transport with the given endpoint and response writer
@@ -101,7 +102,7 @@ func NewSSETransport(endpoint string, w http.ResponseWriter) (*SSETransport, err
 }
 
 // Start initializes the SSE connection
-func (t *SSETransport) Start() error {
+func (t *SSETransport) Start(ctx context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -123,6 +124,13 @@ func (t *SSETransport) Start() error {
 	}
 
 	t.isConnected = true
+
+	// Handle context cancellation
+	go func() {
+		<-ctx.Done()
+		t.Close()
+	}()
+
 	return nil
 }
 
@@ -130,8 +138,8 @@ func (t *SSETransport) Start() error {
 func (t *SSETransport) HandleMessage(msg []byte) error {
 	var rpcMsg map[string]interface{}
 	if err := json.Unmarshal(msg, &rpcMsg); err != nil {
-		if t.OnError != nil {
-			t.OnError(err)
+		if t.errorHandler != nil {
+			t.errorHandler(err)
 		}
 		return err
 	}
@@ -141,8 +149,8 @@ func (t *SSETransport) HandleMessage(msg []byte) error {
 	if _, ok := rpcMsg["method"]; ok {
 		var req JSONRPCRequest
 		if err := json.Unmarshal(msg, &req); err != nil {
-			if t.OnError != nil {
-				t.OnError(err)
+			if t.errorHandler != nil {
+				t.errorHandler(err)
 			}
 			return err
 		}
@@ -150,16 +158,16 @@ func (t *SSETransport) HandleMessage(msg []byte) error {
 	} else {
 		var resp JSONRPCResponse
 		if err := json.Unmarshal(msg, &resp); err != nil {
-			if t.OnError != nil {
-				t.OnError(err)
+			if t.errorHandler != nil {
+				t.errorHandler(err)
 			}
 			return err
 		}
 		jsonrpcMsg = &resp
 	}
 
-	if t.OnMessage != nil {
-		t.OnMessage(jsonrpcMsg)
+	if t.messageHandler != nil {
+		t.messageHandler(jsonrpcMsg)
 	}
 	return nil
 }
@@ -191,10 +199,31 @@ func (t *SSETransport) Close() error {
 	}
 
 	t.isConnected = false
-	if t.OnClose != nil {
-		t.OnClose()
+	if t.closeHandler != nil {
+		t.closeHandler()
 	}
 	return nil
+}
+
+// SetCloseHandler sets the callback for when the connection is closed
+func (t *SSETransport) SetCloseHandler(handler func()) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.closeHandler = handler
+}
+
+// SetErrorHandler sets the callback for when an error occurs
+func (t *SSETransport) SetErrorHandler(handler func(error)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.errorHandler = handler
+}
+
+// SetMessageHandler sets the callback for when a message is received
+func (t *SSETransport) SetMessageHandler(handler func(JSONRPCMessage)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.messageHandler = handler
 }
 
 // SessionID returns the unique session identifier for this transport

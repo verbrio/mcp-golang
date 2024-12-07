@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,11 +19,12 @@ func TestSSEServerTransport(t *testing.T) {
 		assert.NoError(t, err)
 
 		var receivedMsg JSONRPCMessage
-		transport.OnMessage(func(msg JSONRPCMessage) {
+		transport.SetMessageHandler(func(msg JSONRPCMessage) {
 			receivedMsg = msg
 		})
 
-		err = transport.Start()
+		ctx := context.Background()
+		err = transport.Start(ctx)
 		assert.NoError(t, err)
 
 		// Verify SSE headers
@@ -65,7 +67,8 @@ func TestSSEServerTransport(t *testing.T) {
 		transport, err := NewSSEServerTransport("/messages", w)
 		assert.NoError(t, err)
 
-		err = transport.Start()
+		ctx := context.Background()
+		err = transport.Start(ctx)
 		assert.NoError(t, err)
 
 		msg := JSONRPCResponse{
@@ -89,11 +92,12 @@ func TestSSEServerTransport(t *testing.T) {
 		assert.NoError(t, err)
 
 		var receivedErr error
-		transport.OnError(func(err error) {
+		transport.SetErrorHandler(func(err error) {
 			receivedErr = err
 		})
 
-		err = transport.Start()
+		ctx := context.Background()
+		err = transport.Start(ctx)
 		assert.NoError(t, err)
 
 		// Test invalid JSON
