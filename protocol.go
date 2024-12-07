@@ -1,3 +1,68 @@
+// This file implements the core protocol layer for JSON-RPC communication in the MCP SDK.
+// It handles the protocol-level concerns of JSON-RPC messaging, including request/response
+// correlation, progress tracking, request cancellation, and error handling.
+//
+// Key Components:
+//
+// 1. Protocol:
+//   - Core type managing JSON-RPC communication
+//   - Handles message correlation and lifecycle
+//   - Supports:
+//   - Request/Response with timeouts
+//   - Notifications (one-way messages)
+//   - Progress updates during long operations
+//   - Request cancellation
+//   - Error propagation
+//
+// 2. Request Handling:
+//   - Automatic request ID generation
+//   - Context-based cancellation
+//   - Configurable timeouts
+//   - Progress callback support
+//   - Response correlation using channels
+//
+// 3. Message Types:
+//   - JSONRPCRequest: Outgoing requests with IDs
+//   - JSONRPCNotification: One-way messages
+//   - JSONRPCError: Error responses
+//   - Progress: Updates during long operations
+//
+// 4. Handler Registration:
+//   - Request handlers for method calls
+//   - Notification handlers for events
+//   - Progress handlers for long operations
+//   - Error handlers for protocol errors
+//
+// Thread Safety:
+//   - All public methods are thread-safe
+//   - Uses sync.RWMutex for state protection
+//   - Safe for concurrent requests and handlers
+//
+// Usage:
+//
+//	transport := NewStdioTransport()
+//	protocol := NewProtocol(transport)
+//
+//	// Start protocol
+//	protocol.Connect(transport)
+//	defer protocol.Close()
+//
+//	// Make a request
+//	ctx := context.Background()
+//	response, err := protocol.Request(ctx, "method", params, &RequestOptions{
+//	    Timeout: 5 * time.Second,
+//	    OnProgress: func(p Progress) {
+//	        // Handle progress updates
+//	    },
+//	})
+//
+// Error Handling:
+//   - Context-based cancellation
+//   - Timeout management
+//   - Proper cleanup of pending requests
+//   - Detailed error information
+//
+// For more details, see the test file protocol_test.go.
 package mcp
 
 import (
@@ -50,7 +115,7 @@ type Protocol struct {
 	options   *ProtocolOptions
 
 	requestMessageID int64
-	mu              sync.RWMutex
+	mu               sync.RWMutex
 
 	// Maps method name to request handler
 	requestHandlers map[string]func(JSONRPCRequest, RequestHandlerExtra) (interface{}, error)
@@ -228,7 +293,7 @@ func (p *Protocol) handleRequest(request JSONRPCRequest) {
 func (p *Protocol) handleProgressNotification(notification JSONRPCNotification) error {
 	var params struct {
 		Progress      int64 `json:"progress"`
-		Total        int64 `json:"total"`
+		Total         int64 `json:"total"`
 		ProgressToken int64 `json:"progressToken"`
 	}
 
@@ -253,7 +318,7 @@ func (p *Protocol) handleProgressNotification(notification JSONRPCNotification) 
 func (p *Protocol) handleCancelledNotification(notification JSONRPCNotification) error {
 	var params struct {
 		RequestId RequestId `json:"requestId"`
-		Reason    string   `json:"reason"`
+		Reason    string    `json:"reason"`
 	}
 
 	if err := json.Unmarshal([]byte(notification.Params.AdditionalProperties.(string)), &params); err != nil {
