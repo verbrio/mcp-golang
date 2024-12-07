@@ -1,3 +1,3 @@
 package schema
 
-//go:generate go run github.com/a-h/generate/cmd/schema-generate@latest -i mcp-schema-2024-10-07.json -o ../../types.go -p mcp
+//go:generate go run github.com/atombender/go-jsonschema@latest ./mcp-schema-2024-10-07.json -p mcp -o ../../types.go

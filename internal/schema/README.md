@@ -6,4 +6,4 @@ This schema is used to generate the types we use in this library and means that 
 
 ## Generating types from a new schema
 
-We use the [schema-generate](https://github.com/a-h/generate) library to generate types from the schema. To update the types, run `go generate ./...` in this directory.
+We use the [go-jsonschema](https://github.com/atombender/go-jsonschema) library to generate types from the schema. To update the types, run `go generate ./...` in this directory.
