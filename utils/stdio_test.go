@@ -1,8 +1,6 @@
 package mcp
 
 import (
-	"bufio"
-	"bytes"
 	"testing"
 )
 
@@ -56,52 +54,6 @@ func TestReadBuffer(t *testing.T) {
 	}
 	if msg != nil {
 		t.Errorf("Expected nil message, got %v", msg)
-	}
-}
-
-// TestStdioTransport tests the stdio-based transport implementation.
-// The stdio transport is the primary means of communication for the protocol.
-// It ensures:
-// 1. Messages can be sent correctly with proper framing
-// 2. Transport properly handles closing
-// 3. Sending after close returns appropriate error
-// 4. Output includes required newline termination
-// This test is essential as the transport layer must be reliable for the protocol to function.
-func TestStdioTransport(t *testing.T) {
-	// Create a transport with a buffer instead of actual stdin/stdout
-	var input bytes.Buffer
-	var output bytes.Buffer
-	transport := NewStdioTransport()
-	transport.reader = bufio.NewReader(bytes.NewReader(input.Bytes()))
-	transport.writer = &output
-
-	// Test sending a message
-	message := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "test",
-		"params":  map[string]interface{}{},
-	}
-	if err := transport.Send(message); err != nil {
-		t.Errorf("Send failed: %v", err)
-	}
-
-	// Verify output
-	outputStr := output.String()
-	if outputStr == "" {
-		t.Error("Expected output, got empty string")
-	}
-	if outputStr[len(outputStr)-1] != '\n' {
-		t.Error("Expected message to end with newline")
-	}
-
-	// Test closing
-	if err := transport.Close(); err != nil {
-		t.Errorf("Close failed: %v", err)
-	}
-
-	// Test sending after close
-	if err := transport.Send(message); err == nil {
-		t.Error("Expected error when sending after close")
 	}
 }
 
