@@ -1,5 +1,3 @@
-// Package mcp provides a Go implementation of the MCP (Metoro Communication Protocol).
-//
 // This file implements the stdio transport layer for JSON-RPC communication.
 // It provides functionality to read and write JSON-RPC messages over standard input/output
 // streams, similar to the TypeScript implementation in @typescript-sdk/src/shared/stdio.ts.
@@ -63,6 +61,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+
+	"github.com/metoro-io/mcp-golang"
 )
 
 // ReadBuffer buffers a continuous stdio stream into discrete JSON-RPC messages.
@@ -125,29 +125,24 @@ func deserializeMessage(line string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to unmarshal JSON-RPC message: %w", err)
 	}
 
-	// Check if it's a request, response, or notification
-	if _, hasID := msg["id"]; hasID {
-		if _, hasMethod := msg["method"]; hasMethod {
-			var req JSONRPCRequest
-			if err := json.Unmarshal([]byte(line), &req); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal JSON-RPC request: %w", err)
-			}
-			return &req, nil
-		}
-		if _, hasError := msg["error"]; hasError {
-			var err JSONRPCError
-			if err := json.Unmarshal([]byte(line), &err); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal JSON-RPC error: %w", err)
-			}
-			return &err, nil
-		}
-		// Must be a response
-		return msg, nil
+	// Try to unmarshal as a request first
+	var req mcp.JSONRPCRequest
+	if err := json.Unmarshal([]byte(line), &req); err == nil && req.Method != "" {
+		return &req, nil
 	}
-	// Must be a notification
-	var notif JSONRPCNotification
-	if err := json.Unmarshal([]byte(line), &notif); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON-RPC notification: %w", err)
+
+	// Try to unmarshal as an error
+	var err mcp.JSONRPCError
+	if json.Unmarshal([]byte(line), &err) == nil && err.Error.Code != 0 {
+		return &err, nil
 	}
-	return &notif, nil
+
+	// Try to unmarshal as a notification
+	var notif mcp.JSONRPCNotification
+	if err := json.Unmarshal([]byte(line), &notif); err == nil && notif.Method != "" {
+		return &notif, nil
+	}
+
+	// Must be a response
+	return msg, nil
 }
