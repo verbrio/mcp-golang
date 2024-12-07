@@ -7,59 +7,61 @@
 // Key Components:
 //
 // 1. ReadBuffer:
-//    - Buffers continuous stdio stream into discrete JSON-RPC messages
-//    - Thread-safe with mutex protection
-//    - Handles message framing using newline delimiters
-//    - Methods: Append (add data), ReadMessage (read complete message), Clear (reset buffer)
+//   - Buffers continuous stdio stream into discrete JSON-RPC messages
+//   - Thread-safe with mutex protection
+//   - Handles message framing using newline delimiters
+//   - Methods: Append (add data), ReadMessage (read complete message), Clear (reset buffer)
 //
 // 2. StdioTransport:
-//    - Implements the Transport interface using stdio
-//    - Uses bufio.Reader for efficient buffered reading
-//    - Thread-safe with mutex protection
-//    - Supports:
-//      * Asynchronous message reading
-//      * Message sending with newline framing
-//      * Proper cleanup on close
-//      * Event handlers for close, error, and message events
+//   - Implements the Transport interface using stdio
+//   - Uses bufio.Reader for efficient buffered reading
+//   - Thread-safe with mutex protection
+//   - Supports:
+//   - Asynchronous message reading
+//   - Message sending with newline framing
+//   - Proper cleanup on close
+//   - Event handlers for close, error, and message events
 //
 // 3. Message Handling:
-//    - Deserializes JSON-RPC messages into appropriate types:
-//      * JSONRPCRequest: Messages with ID and method
-//      * JSONRPCNotification: Messages with method but no ID
-//      * JSONRPCError: Error responses with ID
-//      * Generic responses: Success responses with ID
-//    - Serializes messages to JSON with newline termination
+//   - Deserializes JSON-RPC messages into appropriate types:
+//   - JSONRPCRequest: Messages with ID and method
+//   - JSONRPCNotification: Messages with method but no ID
+//   - JSONRPCError: Error responses with ID
+//   - Generic responses: Success responses with ID
+//   - Serializes messages to JSON with newline termination
 //
 // Thread Safety:
-//    - All public methods are thread-safe
-//    - Uses sync.Mutex for state protection
-//    - Safe for concurrent reading and writing
+//   - All public methods are thread-safe
+//   - Uses sync.Mutex for state protection
+//   - Safe for concurrent reading and writing
 //
 // Usage:
-//    transport := NewStdioTransport()
-//    transport.SetMessageHandler(func(msg interface{}) {
-//        // Handle incoming message
-//    })
-//    transport.Start()
-//    defer transport.Close()
 //
-//    // Send a message
-//    transport.Send(map[string]interface{}{
-//        "jsonrpc": "2.0",
-//        "method": "test",
-//        "params": map[string]interface{}{},
-//    })
+//	transport := NewStdioTransport()
+//	transport.SetMessageHandler(func(msg interface{}) {
+//	    // Handle incoming message
+//	})
+//	transport.Start()
+//	defer transport.Close()
+//
+//	// Send a message
+//	transport.Send(map[string]interface{}{
+//	    "jsonrpc": "2.0",
+//	    "method": "test",
+//	    "params": map[string]interface{}{},
+//	})
 //
 // Error Handling:
-//    - All methods return meaningful errors
-//    - Transport supports error handler for async errors
-//    - Proper cleanup on error conditions
+//   - All methods return meaningful errors
+//   - Transport supports error handler for async errors
+//   - Proper cleanup on error conditions
 //
 // For more details, see the test file stdio_test.go.
 package mcp
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -169,9 +171,9 @@ type StdioTransport struct {
 	writer     io.Writer
 	readBuffer *ReadBuffer
 
-	closeHandler    func()
+	closeHandler   func()
 	errorHandler   func(error)
-	messageHandler func(interface{})
+	messageHandler func(JSONRPCMessage)
 
 	closed bool
 	mu     sync.RWMutex
@@ -188,7 +190,7 @@ func NewStdioTransport() *StdioTransport {
 }
 
 // Start starts reading from stdin.
-func (t *StdioTransport) Start() error {
+func (t *StdioTransport) Start(ctx context.Context) error {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -202,7 +204,7 @@ func (t *StdioTransport) Start() error {
 }
 
 // Send sends a message to stdout.
-func (t *StdioTransport) Send(message interface{}) error {
+func (t *StdioTransport) Send(message JSONRPCMessage) error {
 	t.mu.RLock()
 	if t.closed {
 		t.mu.RUnlock()
@@ -252,7 +254,7 @@ func (t *StdioTransport) SetErrorHandler(handler func(error)) {
 }
 
 // SetMessageHandler sets the message handler.
-func (t *StdioTransport) SetMessageHandler(handler func(interface{})) {
+func (t *StdioTransport) SetMessageHandler(handler func(JSONRPCMessage)) {
 	t.mu.Lock()
 	t.messageHandler = handler
 	t.mu.Unlock()
