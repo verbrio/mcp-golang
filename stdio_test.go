@@ -1,9 +1,8 @@
-package utils
+package mcp
 
 import (
 	"testing"
 
-	"github.com/metoro-io/mcp-golang"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -77,17 +76,17 @@ func TestMessageDeserialization(t *testing.T) {
 		{
 			name:     "request",
 			input:    `{"jsonrpc": "2.0", "method": "test", "params": {}, "id": 1}`,
-			wantType: &mcp.JSONRPCRequest{},
+			wantType: &JSONRPCRequest{},
 		},
 		{
 			name:     "notification",
 			input:    `{"jsonrpc": "2.0", "method": "test", "params": {}}`,
-			wantType: &mcp.JSONRPCNotification{},
+			wantType: &JSONRPCNotification{},
 		},
 		{
 			name:     "error",
 			input:    `{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": 1}`,
-			wantType: &mcp.JSONRPCError{},
+			wantType: &JSONRPCError{},
 		},
 		{
 			name:     "response",
@@ -106,16 +105,16 @@ func TestMessageDeserialization(t *testing.T) {
 				t.Error("Expected message, got nil")
 			}
 			switch tt.wantType.(type) {
-			case *mcp.JSONRPCRequest:
-				if _, ok := msg.(*mcp.JSONRPCRequest); !ok {
+			case *JSONRPCRequest:
+				if _, ok := msg.(*JSONRPCRequest); !ok {
 					t.Errorf("Expected *mcp.JSONRPCRequest, got %T", msg)
 				}
-			case *mcp.JSONRPCNotification:
-				if _, ok := msg.(*mcp.JSONRPCNotification); !ok {
+			case *JSONRPCNotification:
+				if _, ok := msg.(*JSONRPCNotification); !ok {
 					t.Errorf("Expected *mcp.JSONRPCNotification, got %T", msg)
 				}
-			case *mcp.JSONRPCError:
-				if _, ok := msg.(*mcp.JSONRPCError); !ok {
+			case *JSONRPCError:
+				if _, ok := msg.(*JSONRPCError); !ok {
 					t.Errorf("Expected *mcp.JSONRPCError, got %T", msg)
 				}
 			case map[string]interface{}:
@@ -129,7 +128,7 @@ func TestMessageDeserialization(t *testing.T) {
 	t.Run("request", func(t *testing.T) {
 		msg, err := deserializeMessage(`{"jsonrpc":"2.0","id":1,"method":"test","params":{}}`)
 		assert.NoError(t, err)
-		req, ok := msg.(*mcp.JSONRPCRequest)
+		req, ok := msg.(*JSONRPCRequest)
 		assert.True(t, ok)
 		assert.Equal(t, "2.0", req.Jsonrpc)
 	})
@@ -137,7 +136,7 @@ func TestMessageDeserialization(t *testing.T) {
 	t.Run("notification", func(t *testing.T) {
 		msg, err := deserializeMessage(`{"jsonrpc":"2.0","method":"test","params":{}}`)
 		assert.NoError(t, err)
-		notif, ok := msg.(*mcp.JSONRPCNotification)
+		notif, ok := msg.(*JSONRPCNotification)
 		assert.True(t, ok)
 		assert.Equal(t, "2.0", notif.Jsonrpc)
 	})
@@ -145,7 +144,7 @@ func TestMessageDeserialization(t *testing.T) {
 	t.Run("error", func(t *testing.T) {
 		msg, err := deserializeMessage(`{"jsonrpc":"2.0","id":1,"error":{"code":-32700,"message":"Parse error"}}`)
 		assert.NoError(t, err)
-		errMsg, ok := msg.(*mcp.JSONRPCError)
+		errMsg, ok := msg.(*JSONRPCError)
 		assert.True(t, ok)
 		assert.Equal(t, "2.0", errMsg.Jsonrpc)
 	})

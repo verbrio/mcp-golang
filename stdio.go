@@ -55,14 +55,12 @@
 //   - Proper cleanup on error conditions
 //
 // For more details, see the test file stdio_test.go.
-package utils
+package mcp
 
 import (
 	"encoding/json"
 	"fmt"
 	"sync"
-
-	"github.com/metoro-io/mcp-golang"
 )
 
 // ReadBuffer buffers a continuous stdio stream into discrete JSON-RPC messages.
@@ -126,19 +124,19 @@ func deserializeMessage(line string) (interface{}, error) {
 	}
 
 	// Try to unmarshal as a request first
-	var req mcp.JSONRPCRequest
+	var req JSONRPCRequest
 	if err := json.Unmarshal([]byte(line), &req); err == nil && req.Method != "" {
 		return &req, nil
 	}
 
 	// Try to unmarshal as an error
-	var err mcp.JSONRPCError
+	var err JSONRPCError
 	if json.Unmarshal([]byte(line), &err) == nil && err.Error.Code != 0 {
 		return &err, nil
 	}
 
 	// Try to unmarshal as a notification
-	var notif mcp.JSONRPCNotification
+	var notif JSONRPCNotification
 	if err := json.Unmarshal([]byte(line), &notif); err == nil && notif.Method != "" {
 		return &notif, nil
 	}
