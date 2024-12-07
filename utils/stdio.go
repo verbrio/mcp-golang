@@ -55,7 +55,7 @@
 //   - Proper cleanup on error conditions
 //
 // For more details, see the test file stdio_test.go.
-package mcp
+package utils
 
 import (
 	"encoding/json"
