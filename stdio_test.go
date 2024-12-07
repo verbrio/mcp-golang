@@ -6,6 +6,15 @@ import (
 	"testing"
 )
 
+// TestReadBuffer tests the buffering functionality for JSON-RPC messages.
+// The ReadBuffer is crucial for handling streaming input and properly framing messages.
+// It verifies:
+// 1. Empty buffer handling returns nil message
+// 2. Incomplete messages are properly buffered
+// 3. Complete messages are correctly extracted
+// 4. Multiple message fragments are handled correctly
+// 5. Buffer clearing works as expected
+// This is a critical test as message framing is fundamental to the protocol.
 func TestReadBuffer(t *testing.T) {
 	rb := NewReadBuffer()
 
@@ -50,6 +59,14 @@ func TestReadBuffer(t *testing.T) {
 	}
 }
 
+// TestStdioTransport tests the stdio-based transport implementation.
+// The stdio transport is the primary means of communication for the protocol.
+// It ensures:
+// 1. Messages can be sent correctly with proper framing
+// 2. Transport properly handles closing
+// 3. Sending after close returns appropriate error
+// 4. Output includes required newline termination
+// This test is essential as the transport layer must be reliable for the protocol to function.
 func TestStdioTransport(t *testing.T) {
 	// Create a transport with a buffer instead of actual stdin/stdout
 	var input bytes.Buffer
@@ -88,6 +105,14 @@ func TestStdioTransport(t *testing.T) {
 	}
 }
 
+// TestMessageDeserialization tests the parsing of different JSON-RPC message types.
+// Proper message type detection and parsing is critical for protocol operation.
+// It tests:
+// 1. Request messages (with method and ID)
+// 2. Notification messages (with method, no ID)
+// 3. Error responses (with error object)
+// 4. Success responses (with result)
+// Each message type must be correctly identified and parsed to maintain protocol integrity.
 func TestMessageDeserialization(t *testing.T) {
 	tests := []struct {
 		name     string
