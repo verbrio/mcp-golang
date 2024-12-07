@@ -1,0 +1,324 @@
+package mcp
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+	"time"
+)
+
+func TestProtocol_Connect(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	if !transport.isStarted() {
+		t.Error("Transport was not started")
+	}
+}
+
+func TestProtocol_Close(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	closeCalled := false
+	p.OnClose = func() {
+		closeCalled = true
+	}
+
+	if err := p.Close(); err != nil {
+		t.Fatalf("Close failed: %v", err)
+	}
+
+	if !transport.isClosed() {
+		t.Error("Transport was not closed")
+	}
+
+	if !closeCalled {
+		t.Error("OnClose callback was not called")
+	}
+}
+
+func TestProtocol_Request(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	// Test successful request
+	t.Run("Successful request", func(t *testing.T) {
+		ctx := context.Background()
+		go func() {
+			// Simulate response after a short delay
+			time.Sleep(10 * time.Millisecond)
+			msgs := transport.getMessages()
+			if len(msgs) == 0 {
+				t.Error("No messages sent")
+				return
+			}
+
+			lastMsg := msgs[len(msgs)-1]
+			req, ok := lastMsg.(map[string]interface{})
+			if !ok {
+				t.Error("Last message is not a request")
+				return
+			}
+
+			// Simulate response
+			transport.simulateMessage(map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      req["id"],
+				"result":  "test result",
+			})
+		}()
+
+		result, err := p.Request(ctx, "test_method", map[string]string{"key": "value"}, nil)
+		if err != nil {
+			t.Fatalf("Request failed: %v", err)
+		}
+
+		if result != "test result" {
+			t.Errorf("Expected result 'test result', got %v", result)
+		}
+	})
+
+	// Test request timeout
+	t.Run("Request timeout", func(t *testing.T) {
+		ctx := context.Background()
+		opts := &RequestOptions{
+			Timeout: 50 * time.Millisecond,
+		}
+
+		_, err := p.Request(ctx, "test_method", nil, opts)
+		if err == nil {
+			t.Fatal("Expected timeout error, got nil")
+		}
+	})
+
+	// Test request cancellation
+	t.Run("Request cancellation", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		
+		go func() {
+			time.Sleep(10 * time.Millisecond)
+			cancel()
+		}()
+
+		_, err := p.Request(ctx, "test_method", nil, nil)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Expected context.Canceled error, got %v", err)
+		}
+	})
+}
+
+func TestProtocol_Notification(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	// Send notification
+	if err := p.Notification("test_notification", map[string]string{"key": "value"}); err != nil {
+		t.Fatalf("Notification failed: %v", err)
+	}
+
+	// Check if notification was sent
+	msgs := transport.getMessages()
+	if len(msgs) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(msgs))
+	}
+
+	notification, ok := msgs[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("Message is not a notification")
+	}
+
+	if notification["method"] != "test_notification" {
+		t.Errorf("Expected method 'test_notification', got %v", notification["method"])
+	}
+}
+
+func TestProtocol_RequestHandler(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	// Register request handler
+	handlerCalled := false
+	p.SetRequestHandler("test_method", func(req JSONRPCRequest, extra RequestHandlerExtra) (interface{}, error) {
+		handlerCalled = true
+		return "handler result", nil
+	})
+
+	// Simulate incoming request
+	transport.simulateMessage(&JSONRPCRequest{
+		Jsonrpc: "2.0",
+		Method:  "test_method",
+		Id:      1,
+	})
+
+	// Give some time for handler to be called
+	time.Sleep(50 * time.Millisecond)
+
+	if !handlerCalled {
+		t.Error("Request handler was not called")
+	}
+
+	// Check response
+	msgs := transport.getMessages()
+	if len(msgs) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(msgs))
+	}
+
+	response, ok := msgs[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("Message is not a response")
+	}
+
+	if response["result"] != "handler result" {
+		t.Errorf("Expected result 'handler result', got %v", response["result"])
+	}
+}
+
+func TestProtocol_NotificationHandler(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	// Register notification handler
+	handlerCalled := false
+	p.SetNotificationHandler("test_notification", func(notification JSONRPCNotification) error {
+		handlerCalled = true
+		return nil
+	})
+
+	// Simulate incoming notification
+	transport.simulateMessage(&JSONRPCNotification{
+		Jsonrpc: "2.0",
+		Method:  "test_notification",
+	})
+
+	// Give some time for handler to be called
+	time.Sleep(50 * time.Millisecond)
+
+	if !handlerCalled {
+		t.Error("Notification handler was not called")
+	}
+}
+
+func TestProtocol_Progress(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	progressReceived := make(chan Progress, 1)
+	opts := &RequestOptions{
+		OnProgress: func(p Progress) {
+			progressReceived <- p
+		},
+	}
+
+	// Start request
+	go func() {
+		ctx := context.Background()
+		_, err := p.Request(ctx, "test_method", nil, opts)
+		if err != nil {
+			t.Errorf("Request failed: %v", err)
+		}
+	}()
+
+	// Wait a bit for request to be sent
+	time.Sleep(10 * time.Millisecond)
+
+	// Get the progress token from the sent request
+	msgs := transport.getMessages()
+	if len(msgs) == 0 {
+		t.Fatal("No messages sent")
+	}
+
+	req, ok := msgs[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("Message is not a request")
+	}
+
+	params, ok := req["params"].(map[string]interface{})
+	if !ok {
+		params = map[string]interface{}{} // If no params, create empty map
+	}
+
+	meta, ok := params["_meta"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Request has no _meta in params")
+	}
+
+	progressToken := meta["progressToken"]
+
+	// Simulate progress notification
+	transport.simulateMessage(&JSONRPCNotification{
+		Jsonrpc: "2.0",
+		Method:  "$/progress",
+		Params: &JSONRPCNotificationParams{
+			Meta:                 nil,
+			AdditionalProperties: fmt.Sprintf(`{"progress": 50, "total": 100, "progressToken": %v}`, progressToken),
+		},
+	})
+
+	// Wait for progress
+	select {
+	case progress := <-progressReceived:
+		if progress.Progress != 50 || progress.Total != 100 {
+			t.Errorf("Unexpected progress values: got %v", progress)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Progress notification not received")
+	}
+}
+
+func TestProtocol_ErrorHandling(t *testing.T) {
+	p := NewProtocol(nil)
+	transport := newMockTransport()
+
+	if err := p.Connect(transport); err != nil {
+		t.Fatalf("Connect failed: %v", err)
+	}
+
+	errorReceived := make(chan error, 1)
+	p.OnError = func(err error) {
+		errorReceived <- err
+	}
+
+	// Simulate transport error
+	testErr := errors.New("test error")
+	transport.simulateError(testErr)
+
+	// Wait for error
+	select {
+	case err := <-errorReceived:
+		if err != testErr {
+			t.Errorf("Expected error %v, got %v", testErr, err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Error("Error not received")
+	}
+}
