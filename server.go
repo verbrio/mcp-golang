@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"github.com/invopop/jsonschema"
 	"reflect"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 // Here we define the actual MCP server that users will create and run
@@ -48,13 +45,6 @@ func NewServer(transport Transport) *Server {
 		transport: transport,
 		Tools:     make(map[string]*ToolType),
 	}
-}
-
-func dereferenceReflectType(t reflect.Type) reflect.Type {
-	if t.Kind() == reflect.Ptr {
-		return t.Elem()
-	}
-	return t
 }
 
 // Tool registers a new tool with the server
@@ -228,67 +218,4 @@ func validateHandler(handler any) error {
 	}
 
 	return nil
-}
-
-// validateStruct validates a struct based on its mcp tags
-func validateStruct(v interface{}) error {
-	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-
-	typ := val.Type()
-	for i := 0; i < val.NumField(); i++ {
-		field := typ.Field(i)
-		tag := field.Tag.Get("mcp")
-		if tag == "" {
-			continue
-		}
-
-		// Parse the tag
-		tagMap := parseTag(tag)
-
-		// Get validation rules
-		if validation, ok := tagMap["validation"]; ok {
-			if strings.Contains(validation, "maxLength") {
-				length := extractMaxLength(validation)
-				fieldVal := val.Field(i)
-				if fieldVal.Kind() == reflect.String && fieldVal.Len() > length {
-					return fmt.Errorf("field %s exceeds maximum length of %d", field.Name, length)
-				}
-			}
-		}
-
-		// If it's a struct, recursively validate
-		if field.Type.Kind() == reflect.Struct {
-			if err := validateStruct(val.Field(i).Interface()); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// parseTag parses an mcp tag into a map of key-value pairs
-func parseTag(tag string) map[string]string {
-	result := make(map[string]string)
-	parts := strings.Split(tag, ",")
-	for _, part := range parts {
-		kv := strings.SplitN(part, ":", 2)
-		if len(kv) == 2 {
-			result[strings.TrimSpace(kv[0])] = strings.Trim(kv[1], "'")
-		}
-	}
-	return result
-}
-
-// extractMaxLength extracts the maximum length from a maxLength validation rule
-func extractMaxLength(validation string) int {
-	re := regexp.MustCompile(`maxLength\((\d+)\)`)
-	matches := re.FindStringSubmatch(validation)
-	if len(matches) == 2 {
-		length, _ := strconv.Atoi(matches[1])
-		return length
-	}
-	return 0
 }
