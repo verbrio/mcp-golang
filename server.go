@@ -18,8 +18,12 @@ import (
 // The interface that we're looking to support is something like [gin](https://github.com/gin-gonic/gin)s interface
 
 type Server struct {
-	transport Transport
-	Tools     map[string]*ToolType
+	transport          Transport
+	Tools              map[string]*ToolType
+	serverCapabilities ServerCapabilities
+	serverInstructions *string
+	serverName         string
+	serverVersion      string
 }
 
 type ToolType struct {
@@ -103,6 +107,21 @@ func (s *Server) Tool(name string, description string, handler any) error {
 
 func (s *Server) Serve() error {
 	protocol := NewProtocol(nil)
+
+	protocol.SetRequestHandler("initialize", func(req JSONRPCRequest, _ RequestHandlerExtra) (Result, error) {
+		return Result{
+			AdditionalProperties: InitializeResult{
+				Meta:            nil,
+				Capabilities:    s.serverCapabilities,
+				Instructions:    s.serverInstructions,
+				ProtocolVersion: "2024-11-05",
+				ServerInfo: Implementation{
+					Name:    s.serverName,
+					Version: s.serverVersion,
+				},
+			},
+		}, nil
+	})
 
 	return protocol.Connect(s.transport)
 }
