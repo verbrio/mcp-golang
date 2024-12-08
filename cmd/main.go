@@ -15,12 +15,15 @@ func main() {
 	done := make(chan struct{})
 
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
-	s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (mcp.ToolResponse, error) {
+	err := s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (mcp.ToolResponse, error) {
 		// ... handle the tool logic
 		return mcp.ToolResponse{Content: []mcp.Content{{Type: "text", Text: "Hello, " + arguments.Submitter + "!"}}}, nil
 	})
+	if err != nil {
+		panic(err)
+	}
 
-	err := s.Serve()
+	err = s.Serve()
 	if err != nil {
 		panic(err)
 	}
