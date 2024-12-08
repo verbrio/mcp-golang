@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -61,13 +62,13 @@ import (
 
 type Server struct {
 	transport Transport
-	tools     map[string]*ToolType
+	Tools     map[string]*ToolType
 }
 
 type ToolType struct {
 	Name        string
 	Description string
-	Handler     func(interface{}) (ToolResponse, error)
+	Handler     func(CallToolRequestParamsArguments) (ToolResponse, error)
 	Arguments   interface{}
 }
 
@@ -78,16 +79,66 @@ type ToolResponse struct {
 func NewServer(transport Transport) *Server {
 	return &Server{
 		transport: transport,
-		tools:     make(map[string]*ToolType),
+		Tools:     make(map[string]*ToolType),
 	}
 }
 
+func dereferenceReflectType(t reflect.Type) reflect.Type {
+	if t.Kind() == reflect.Ptr {
+		return t.Elem()
+	}
+	return t
+}
+
 // Tool registers a new tool with the server
-func (s *Server) Tool(name string, description string, handler func(arguments interface{}) (ToolResponse, error)) {
-	s.tools[name] = &ToolType{
+func (s *Server) Tool(name string, description string, handler any) {
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+
+	if handlerType.NumIn() != 1 {
+		panic("handler must take exactly one argument")
+	}
+
+	argumentType := handlerType.In(0)
+
+	wrappedHandler := func(arguments CallToolRequestParamsArguments) (ToolResponse, error) {
+		// We're going to json serialize the arguments and unmarshal them into the correct type
+		jsonArgs, err := json.Marshal(arguments)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
+		}
+
+		// Instantiate a struct of the type of the arguments
+		unmarshaledArguments := reflect.New(argumentType).Interface()
+
+		// Unmarshal the JSON into the correct type
+		err = json.Unmarshal(jsonArgs, &unmarshaledArguments)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
+		}
+
+		// Need to dereference the unmarshaled arguments
+		unmarshaledArguments = reflect.ValueOf(unmarshaledArguments).Elem().Interface()
+
+		// Call the handler with the typed arguments
+		output := handlerValue.Call([]reflect.Value{reflect.ValueOf(unmarshaledArguments)})
+
+		if len(output) != 2 {
+			return ToolResponse{}, fmt.Errorf("tool handler must return exactly two values, got %d", len(output))
+		}
+
+		tool := output[0].Interface()
+		errorOut := output[1].Interface()
+		if errorOut == nil {
+			return tool.(ToolResponse), nil
+		}
+		return tool.(ToolResponse), errorOut.(error)
+	}
+
+	s.Tools[name] = &ToolType{
 		Name:        name,
 		Description: description,
-		Handler:     handler,
+		Handler:     wrappedHandler,
 	}
 }
 
@@ -152,21 +203,4 @@ func extractMaxLength(validation string) int {
 		return length
 	}
 	return 0
-}
-
-type HelloType struct {
-	Hello string `mcp:"description:'description',validation:maxLength(10)"`
-}
-type MyFunctionsArguments struct {
-	Foo string    `mcp:"description:'description',validation:maxLength(10)"`
-	Bar HelloType `mcp:"description:'description'"`
-}
-
-func main() {
-	s := NewServer(NewStdioServerTransport())
-	s.Tool("test", "Test tool's description", func(arguments MyFunctionsArguments) (ToolResponse, error) {
-		h := arguments.Bar.Hello
-		// ... handle the tool logic
-		return ToolResponse{Result: h}, nil
-	})
 }

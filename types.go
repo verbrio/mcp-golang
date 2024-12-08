@@ -953,7 +953,7 @@ type InitializeResult struct {
 	// Instructions describing how to use the server and its features.
 	//
 	// This can be used by clients to improve the LLM's understanding of available
-	// tools, resources, etc. It can be thought of like a "hint" to the model. For
+	// Tools, resources, etc. It can be thought of like a "hint" to the model. For
 	// example, this information MAY be added to the system prompt.
 	Instructions *string `json:"instructions,omitempty" yaml:"instructions,omitempty" mapstructure:"instructions,omitempty"`
 
@@ -1538,7 +1538,7 @@ func (j *ListRootsResult) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Sent from the client to request a list of tools the server has.
+// Sent from the client to request a list of Tools the server has.
 type ListToolsRequest struct {
 	// Method corresponds to the JSON schema field "method".
 	Method string `json:"method" yaml:"method" mapstructure:"method"`
@@ -1571,7 +1571,7 @@ func (j *ListToolsRequest) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// The server's response to a tools/list request from the client.
+// The server's response to a Tools/list request from the client.
 type ListToolsResult struct {
 	// This result property is reserved by the protocol to allow clients and servers
 	// to attach additional metadata to their responses.
@@ -1582,8 +1582,8 @@ type ListToolsResult struct {
 	// If present, there may be more results available.
 	NextCursor *string `json:"nextCursor,omitempty" yaml:"nextCursor,omitempty" mapstructure:"nextCursor,omitempty"`
 
-	// Tools corresponds to the JSON schema field "tools".
-	Tools []Tool `json:"tools" yaml:"tools" mapstructure:"tools"`
+	// Tools corresponds to the JSON schema field "Tools".
+	Tools []Tool `json:"Tools" yaml:"Tools" mapstructure:"Tools"`
 }
 
 // This result property is reserved by the protocol to allow clients and servers to
@@ -1596,8 +1596,8 @@ func (j *ListToolsResult) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["tools"]; raw != nil && !ok {
-		return fmt.Errorf("field tools in ListToolsResult: required")
+	if _, ok := raw["Tools"]; raw != nil && !ok {
+		return fmt.Errorf("field Tools in ListToolsResult: required")
 	}
 	type Plain ListToolsResult
 	var plain Plain
@@ -2763,8 +2763,8 @@ type ServerCapabilities struct {
 	// Present if the server offers any resources to read.
 	Resources *ServerCapabilitiesResources `json:"resources,omitempty" yaml:"resources,omitempty" mapstructure:"resources,omitempty"`
 
-	// Present if the server offers any tools to call.
-	Tools *ServerCapabilitiesTools `json:"tools,omitempty" yaml:"tools,omitempty" mapstructure:"tools,omitempty"`
+	// Present if the server offers any Tools to call.
+	Tools *ServerCapabilitiesTools `json:"Tools,omitempty" yaml:"Tools,omitempty" mapstructure:"Tools,omitempty"`
 }
 
 // Experimental, non-standard capabilities that the server supports.
@@ -2788,7 +2788,7 @@ type ServerCapabilitiesResources struct {
 	Subscribe *bool `json:"subscribe,omitempty" yaml:"subscribe,omitempty" mapstructure:"subscribe,omitempty"`
 }
 
-// Present if the server offers any tools to call.
+// Present if the server offers any Tools to call.
 type ServerCapabilitiesTools struct {
 	// Whether this server supports notifications for changes to the tool list.
 	ListChanged *bool `json:"listChanged,omitempty" yaml:"listChanged,omitempty" mapstructure:"listChanged,omitempty"`
@@ -3053,7 +3053,7 @@ func (j *ToolInputSchema) UnmarshalJSON(b []byte) error {
 }
 
 // An optional notification from the server to the client, informing it that the
-// list of tools it offers has changed. This may be issued by servers without any
+// list of Tools it offers has changed. This may be issued by servers without any
 // previous subscription from the client.
 type ToolListChangedNotification struct {
 	// Method corresponds to the JSON schema field "method".
