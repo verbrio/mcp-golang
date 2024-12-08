@@ -118,7 +118,7 @@ type Protocol struct {
 	mu               sync.RWMutex
 
 	// Maps method name to request handler
-	requestHandlers map[string]func(JSONRPCRequest, RequestHandlerExtra) (Result, error)
+	requestHandlers map[string]func(JSONRPCRequest, RequestHandlerExtra) (interface{}, error) // Result or error
 	// Maps request ID to cancellation function
 	requestCancellers map[RequestId]context.CancelFunc
 	// Maps method name to notification handler
@@ -147,7 +147,7 @@ type responseEnvelope struct {
 func NewProtocol(options *ProtocolOptions) *Protocol {
 	p := &Protocol{
 		options:              options,
-		requestHandlers:      make(map[string]func(JSONRPCRequest, RequestHandlerExtra) (Result, error)),
+		requestHandlers:      make(map[string]func(JSONRPCRequest, RequestHandlerExtra) (interface{}, error)),
 		requestCancellers:    make(map[RequestId]context.CancelFunc),
 		notificationHandlers: make(map[string]func(JSONRPCNotification) error),
 		responseHandlers:     make(map[int64]chan *responseEnvelope),
@@ -157,7 +157,7 @@ func NewProtocol(options *ProtocolOptions) *Protocol {
 	// Set up default handlers
 	p.SetNotificationHandler("notifications/cancelled", p.handleCancelledNotification)
 	p.SetNotificationHandler("$/progress", p.handleProgressNotification)
-	p.SetRequestHandler("ping", func(req JSONRPCRequest, _ RequestHandlerExtra) (Result, error) {
+	p.SetRequestHandler("ping", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
 		return Result{}, nil
 	})
 
@@ -198,7 +198,7 @@ func (p *Protocol) handleClose() {
 	defer p.mu.Unlock()
 
 	// Clear all handlers
-	p.requestHandlers = make(map[string]func(JSONRPCRequest, RequestHandlerExtra) (Result, error))
+	p.requestHandlers = make(map[string]func(JSONRPCRequest, RequestHandlerExtra) (interface{}, error))
 	p.notificationHandlers = make(map[string]func(JSONRPCNotification) error)
 
 	// Cancel all pending requests
@@ -250,7 +250,7 @@ func (p *Protocol) handleRequest(request JSONRPCRequest) {
 	p.mu.RLock()
 	handler := p.requestHandlers[request.Method]
 	if handler == nil {
-		handler = func(req JSONRPCRequest, extra RequestHandlerExtra) (Result, error) {
+		handler = func(req JSONRPCRequest, extra RequestHandlerExtra) (interface{}, error) {
 			if p.FallbackRequestHandler != nil {
 				return p.FallbackRequestHandler(req)
 			}
@@ -506,7 +506,7 @@ func (p *Protocol) Notification(method string, params interface{}) error {
 }
 
 // SetRequestHandler registers a handler to invoke when this protocol object receives a request with the given method
-func (p *Protocol) SetRequestHandler(method string, handler func(JSONRPCRequest, RequestHandlerExtra) (Result, error)) {
+func (p *Protocol) SetRequestHandler(method string, handler func(JSONRPCRequest, RequestHandlerExtra) (interface{}, error)) {
 	p.mu.Lock()
 	p.requestHandlers[method] = handler
 	p.mu.Unlock()

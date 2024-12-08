@@ -108,17 +108,15 @@ func (s *Server) Tool(name string, description string, handler any) error {
 func (s *Server) Serve() error {
 	protocol := NewProtocol(nil)
 
-	protocol.SetRequestHandler("initialize", func(req JSONRPCRequest, _ RequestHandlerExtra) (Result, error) {
-		return Result{
-			AdditionalProperties: InitializeResult{
-				Meta:            nil,
-				Capabilities:    s.serverCapabilities,
-				Instructions:    s.serverInstructions,
-				ProtocolVersion: "2024-11-05",
-				ServerInfo: Implementation{
-					Name:    s.serverName,
-					Version: s.serverVersion,
-				},
+	protocol.SetRequestHandler("initialize", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+		return InitializeResult{
+			Meta:            nil,
+			Capabilities:    s.serverCapabilities,
+			Instructions:    s.serverInstructions,
+			ProtocolVersion: "2024-11-05",
+			ServerInfo: Implementation{
+				Name:    s.serverName,
+				Version: s.serverVersion,
 			},
 		}, nil
 	})
