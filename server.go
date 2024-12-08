@@ -3,6 +3,7 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/invopop/jsonschema"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -20,17 +21,16 @@ import (
 type Server struct {
 	transport          Transport
 	Tools              map[string]*ToolType
-	serverCapabilities ServerCapabilities
 	serverInstructions *string
 	serverName         string
 	serverVersion      string
 }
 
 type ToolType struct {
-	Name        string
-	Description string
-	Handler     func(CallToolRequestParamsArguments) (ToolResponse, error)
-	Arguments   interface{}
+	Name            string
+	Description     string
+	Handler         func(CallToolRequestParamsArguments) (ToolResponse, error)
+	ToolInputSchema *jsonschema.Schema
 }
 
 type ToolResponse struct {
@@ -61,6 +61,31 @@ func (s *Server) Tool(name string, description string, handler any) error {
 	handlerType := handlerValue.Type()
 
 	argumentType := handlerType.In(0)
+
+	reflector := jsonschema.Reflector{
+		BaseSchemaID:               "",
+		Anonymous:                  true,
+		AssignAnchor:               false,
+		AllowAdditionalProperties:  true,
+		RequiredFromJSONSchemaTags: false,
+		DoNotReference:             true,
+		ExpandedStruct:             true,
+		FieldNameTag:               "",
+		IgnoredTypes:               nil,
+		Lookup:                     nil,
+		Mapper:                     nil,
+		Namer:                      nil,
+		KeyNamer:                   nil,
+		AdditionalFields:           nil,
+		CommentMap:                 nil,
+	}
+
+	inputSchema := reflector.ReflectFromType(argumentType)
+	//marshalJSON, err := inputSchema.MarshalJSON()
+	//if err != nil {
+	//	return err
+	//}
+	//println(string(marshalJSON))
 
 	wrappedHandler := func(arguments CallToolRequestParamsArguments) (ToolResponse, error) {
 		// We're going to json serialize the arguments and unmarshal them into the correct type
@@ -97,13 +122,87 @@ func (s *Server) Tool(name string, description string, handler any) error {
 	}
 
 	s.Tools[name] = &ToolType{
-		Name:        name,
-		Description: description,
-		Handler:     wrappedHandler,
+		Name:            name,
+		Description:     description,
+		Handler:         wrappedHandler,
+		ToolInputSchema: inputSchema,
 	}
 
 	return nil
 }
+
+//func getToolInputSchema(argumentType reflect.Type) (ToolInputSchema, error) {
+//	var schema ToolInputSchema
+//	switch argumentType.Kind() {
+//	case reflect.Ptr:
+//		argumentType = dereferenceReflectType(argumentType)
+//		return getToolInputSchema(argumentType)
+//	case reflect.Array, reflect.Slice:
+//		// We need to get the type of the elements
+//		elementType := argumentType.Elem()
+//
+//	case reflect.Struct:
+//		// If it's a struct then we need to get the schema for each field
+//		schema.Required = []string{}
+//		m := make(map[string]interface{})
+//		for i := 0; i < argumentType.NumField(); i++ {
+//			field := argumentType.Field(i)
+//			// If it's not a pointer then add it to the required fields
+//			if field.Type.Kind() != reflect.Ptr {
+//				schema.Required = append(schema.Required, field.Name)
+//			}
+//			// Dereference the type
+//			t := dereferenceReflectType(field.Type)
+//			fieldSchema, err := getToolInputSchema(t)
+//			if err != nil {
+//				return ToolInputSchema{}, err
+//			}
+//			m[field.Name] = fieldSchema.Properties
+//		}
+//		schema.Properties = m
+//	default:
+//		if !isStandardJSONSchemaType(argumentType) {
+//			return ToolInputSchema{}, fmt.Errorf("unknown type: %s", argumentType.String())
+//		}
+//		// If it's not a struct or a pointer then it's a standard JSON schema type
+//		t, err := convertGoTypeToJSONSchemaType(argumentType)
+//		if err != nil {
+//			return ToolInputSchema{}, err
+//		}
+//		schema.Type = t
+//	}
+//	return schema, nil
+//}
+//
+//func convertGoTypeToJSONSchemaType(argumentType reflect.Type) (string, error) {
+//	switch argumentType.Kind() {
+//	case reflect.Array, reflect.Slice:
+//		return "array", nil
+//	case reflect.Map, reflect.Struct:
+//		return "object", nil
+//	case reflect.String:
+//		return "string", nil
+//	case reflect.Bool:
+//		return "boolean", nil
+//	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+//		return "integer", nil
+//	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+//		return "integer", nil
+//	case reflect.Float32, reflect.Float64:
+//		return "number", nil
+//	default:
+//		return "", fmt.Errorf("unknown type: %s", argumentType.String())
+//	}
+//}
+//
+//func isStandardJSONSchemaType(t reflect.Type) bool {
+//	switch t.String() {
+//	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "array", "slice", "map", "ptr":
+//		return true
+//	default:
+//		return false
+//	}
+//}
 
 func (s *Server) Serve() error {
 	protocol := NewProtocol(nil)
@@ -111,7 +210,7 @@ func (s *Server) Serve() error {
 	protocol.SetRequestHandler("initialize", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
 		return InitializeResult{
 			Meta:            nil,
-			Capabilities:    s.serverCapabilities,
+			Capabilities:    s.generateCapabilities(),
 			Instructions:    s.serverInstructions,
 			ProtocolVersion: "2024-11-05",
 			ServerInfo: Implementation{
@@ -121,7 +220,55 @@ func (s *Server) Serve() error {
 		}, nil
 	})
 
+	// Definition for a tool the client can call.
+	type ToolRetType struct {
+		// A human-readable description of the tool.
+		Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
+
+		// A JSON Schema object defining the expected parameters for the tool.
+		InputSchema interface{} `json:"inputSchema" yaml:"inputSchema" mapstructure:"inputSchema"`
+
+		// The name of the tool.
+		Name string `json:"name" yaml:"name" mapstructure:"name"`
+	}
+
+	protocol.SetRequestHandler("tools/list", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+		m := map[string]interface{}{
+			"tools": func() []ToolRetType {
+				var tools []ToolRetType
+				for _, tool := range s.Tools {
+					tools = append(tools, ToolRetType{
+						Name:        tool.Name,
+						Description: &tool.Description,
+						InputSchema: tool.ToolInputSchema,
+					})
+				}
+				return tools
+			}(),
+		}
+		marshalled, err := json.Marshal(m)
+		if err != nil {
+			return nil, err
+		}
+		println(string(marshalled))
+		return m, nil
+	})
+
 	return protocol.Connect(s.transport)
+}
+
+func (s *Server) generateCapabilities() ServerCapabilities {
+	f := false
+	return ServerCapabilities{
+		Tools: func() *ServerCapabilitiesTools {
+			if s.Tools == nil {
+				return nil
+			}
+			return &ServerCapabilitiesTools{
+				ListChanged: &f,
+			}
+		}(),
+	}
 }
 
 func validateHandler(handler any) error {

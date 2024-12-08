@@ -3032,7 +3032,7 @@ type ToolInputSchema struct {
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
 }
 
-type ToolInputSchemaProperties map[string]map[string]interface{}
+type ToolInputSchemaProperties interface{}
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (j *ToolInputSchema) UnmarshalJSON(b []byte) error {
