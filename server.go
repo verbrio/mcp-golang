@@ -91,22 +91,13 @@ func dereferenceReflectType(t reflect.Type) reflect.Type {
 }
 
 // Tool registers a new tool with the server
-func (s *Server) Tool(name string, description string, handler any) {
+func (s *Server) Tool(name string, description string, handler any) error {
+	err := validateHandler(handler)
+	if err != nil {
+		return err
+	}
 	handlerValue := reflect.ValueOf(handler)
 	handlerType := handlerValue.Type()
-
-	if handlerType.NumIn() != 1 {
-		panic("handler must take exactly one argument")
-	}
-
-	if handlerType.NumOut() != 2 {
-		panic("handler must return exactly two values")
-	}
-
-	// Check that the output type is ToolResponse
-	if handlerType.Out(0) != reflect.TypeOf(ToolResponse{}) {
-		panic("handler must return mcp.ToolResponse")
-	}
 
 	argumentType := handlerType.In(0)
 
@@ -149,6 +140,33 @@ func (s *Server) Tool(name string, description string, handler any) {
 		Description: description,
 		Handler:     wrappedHandler,
 	}
+
+	return nil
+}
+
+func validateHandler(handler any) error {
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+
+	if handlerType.NumIn() != 1 {
+		return fmt.Errorf("handler must take exactly one argument, got %d", handlerType.NumIn())
+	}
+
+	if handlerType.NumOut() != 2 {
+		return fmt.Errorf("handler must return exactly two values, got %d", handlerType.NumOut())
+	}
+
+	// Check that the output type is ToolResponse
+	if handlerType.Out(0) != reflect.TypeOf(ToolResponse{}) {
+		return fmt.Errorf("handler must return mcp.ToolResponse, got %s", handlerType.Out(0).Name())
+	}
+
+	// Check that the output type is error
+	if handlerType.Out(1) != reflect.TypeOf((*error)(nil)).Elem() {
+		return fmt.Errorf("handler must return error, got %s", handlerType.Out(1).Name())
+	}
+
+	return nil
 }
 
 // validateStruct validates a struct based on its mcp tags
