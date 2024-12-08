@@ -6,6 +6,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.12.0
 	github.com/stretchr/testify v1.9.0
+	golang.org/x/tools v0.28.0
 )
 
 require (

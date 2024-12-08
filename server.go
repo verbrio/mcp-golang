@@ -29,7 +29,7 @@ type Server struct {
 type ToolType struct {
 	Name            string
 	Description     string
-	Handler         func(CallToolRequestParamsArguments) (ToolResponse, error)
+	Handler         func(BaseCallToolRequestParams) (ToolResponse, error)
 	ToolInputSchema *jsonschema.Schema
 }
 
@@ -82,9 +82,9 @@ func (s *Server) Tool(name string, description string, handler any) error {
 
 	inputSchema := reflector.ReflectFromType(argumentType)
 
-	wrappedHandler := func(arguments CallToolRequestParamsArguments) (ToolResponse, error) {
+	wrappedHandler := func(arguments BaseCallToolRequestParams) (ToolResponse, error) {
 		// We're going to json serialize the arguments and unmarshal them into the correct type
-		jsonArgs, err := json.Marshal(arguments)
+		jsonArgs, err := json.Marshal(arguments.Arguments)
 		if err != nil {
 			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
 		}
@@ -129,7 +129,7 @@ func (s *Server) Tool(name string, description string, handler any) error {
 func (s *Server) Serve() error {
 	protocol := NewProtocol(nil)
 
-	protocol.SetRequestHandler("initialize", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+	protocol.SetRequestHandler("initialize", func(req *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
 		return InitializeResult{
 			Meta:            nil,
 			Capabilities:    s.generateCapabilities(),
@@ -154,7 +154,7 @@ func (s *Server) Serve() error {
 		Name string `json:"name" yaml:"name" mapstructure:"name"`
 	}
 
-	protocol.SetRequestHandler("tools/list", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+	protocol.SetRequestHandler("tools/list", func(req *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
 		return map[string]interface{}{
 			"tools": func() []ToolRetType {
 				var tools []ToolRetType
@@ -170,25 +170,10 @@ func (s *Server) Serve() error {
 		}, nil
 	})
 
-	protocol.SetRequestHandler("tools/call", func(req JSONRPCRequest, extra RequestHandlerExtra) (interface{}, error) {
-		println("here")
-		// We need to marshal the arguments into JSON and unmarshal them into the correct type
-		jsonArgs, err := json.Marshal(req.Params)
-		if err != nil {
-			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
-		}
-		println(string(jsonArgs))
-
-		// Marshal and print extra
-		jsonExtra, err := json.Marshal(extra)
-		if err != nil {
-			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
-		}
-		println(string(jsonExtra))
-
-		params := CallToolRequestParams{}
+	protocol.SetRequestHandler("tools/call", func(req *BaseJSONRPCRequest, extra RequestHandlerExtra) (interface{}, error) {
+		params := BaseCallToolRequestParams{}
 		// Instantiate a struct of the type of the arguments
-		err = json.Unmarshal(jsonArgs, &params)
+		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
 			return ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
 		}
@@ -198,7 +183,7 @@ func (s *Server) Serve() error {
 				continue
 			}
 			println("Calling tool: " + name)
-			return tool.Handler(params.Arguments)
+			return tool.Handler(params)
 		}
 		return ToolResponse{}, fmt.Errorf("unknown tool: %s", req.Method)
 	})

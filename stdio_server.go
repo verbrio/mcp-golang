@@ -19,7 +19,7 @@ type StdioServerTransport struct {
 	readBuf   *ReadBuffer
 	onClose   func()
 	onError   func(error)
-	onMessage func(JSONRPCMessage)
+	onMessage func(message *BaseMessage)
 }
 
 // NewStdioServerTransport creates a new StdioServerTransport using os.Stdin and os.Stdout
@@ -93,7 +93,7 @@ func (t *StdioServerTransport) SetErrorHandler(handler func(error)) {
 }
 
 // SetMessageHandler sets the handler for incoming messages
-func (t *StdioServerTransport) SetMessageHandler(handler func(JSONRPCMessage)) {
+func (t *StdioServerTransport) SetMessageHandler(handler func(message *BaseMessage)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.onMessage = handler
@@ -139,14 +139,7 @@ func (t *StdioServerTransport) processReadBuffer() {
 			return
 		}
 
-		// Convert the message to JSONRPCMessage type
-		jsonrpcMsg, ok := msg.(JSONRPCMessage)
-		if !ok {
-			t.handleError(fmt.Errorf("received message is not a valid JSONRPCMessage"))
-			return
-		}
-
-		t.handleMessage(jsonrpcMsg)
+		t.handleMessage(msg)
 	}
 }
 
@@ -160,7 +153,7 @@ func (t *StdioServerTransport) handleError(err error) {
 	}
 }
 
-func (t *StdioServerTransport) handleMessage(msg JSONRPCMessage) {
+func (t *StdioServerTransport) handleMessage(msg *BaseMessage) {
 	t.mu.Lock()
 	handler := t.onMessage
 	t.mu.Unlock()
