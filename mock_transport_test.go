@@ -10,9 +10,9 @@ type mockTransport struct {
 	mu sync.RWMutex
 
 	// Callbacks
-	onClose    func()
-	onError    func(error)
-	onMessage  func(JSONRPCMessage)
+	onClose   func()
+	onError   func(error)
+	onMessage func(JSONRPCMessage)
 
 	// Test helpers
 	messages []JSONRPCMessage
