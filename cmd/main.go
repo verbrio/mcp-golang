@@ -1,6 +1,6 @@
 package main
 
-import mcp "github.com/metoro-io/mcp-golang"
+import "github.com/metoro-io/mcp-golang"
 
 type HelloType struct {
 	Hello string `json:"hello" mcp:"description:'This is hello, you need to pass it'"`
@@ -11,18 +11,26 @@ type MyFunctionsArguments struct {
 }
 
 func main() {
+	done := make(chan struct{})
+
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
 	s.Tool("test", "Test tool's description", func(arguments MyFunctionsArguments) (mcp.ToolResponse, error) {
 		h := arguments.Bar.Hello
 		// ... handle the tool logic
-		println(arguments.Foo)
 		return mcp.ToolResponse{Result: h}, nil
 	})
 
-	(*s.Tools["test"]).Handler(mcp.CallToolRequestParamsArguments{
-		"Foo": "hello",
-		"Bar": map[string]interface{}{
-			"Hello": "world",
-		},
-	})
+	//(*s.Tools["test"]).Handler(mcp.CallToolRequestParamsArguments{
+	//	"Foo": "hello",
+	//	"Bar": map[string]interface{}{
+	//		"Hello": "world",
+	//	},
+	//})
+
+	err := s.Serve()
+	if err != nil {
+		panic(err)
+	}
+
+	<-done
 }

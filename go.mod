@@ -2,8 +2,6 @@ module github.com/metoro-io/mcp-golang
 
 go 1.23.4
 
-replace github.com/metoro-io/mcp-golang => .
-
 require (
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.9.0
