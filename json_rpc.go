@@ -1,5 +1,7 @@
 package mcp
 
+import "encoding/json"
+
 type RequestId int
 
 type BaseJSONRPCRequest struct {
@@ -14,7 +16,7 @@ type BaseJSONRPCRequest struct {
 
 	// Params corresponds to the JSON schema field "params".
 	// It is stored as a []byte to enable efficient marshaling and unmarshaling into custom types later on in the protocol
-	Params []byte `json:"params,omitempty" yaml:"params,omitempty" mapstructure:"params,omitempty"`
+	Params json.RawMessage `json:"params,omitempty" yaml:"params,omitempty" mapstructure:"params,omitempty"`
 }
 
 type BaseJSONRPCNotification struct {
@@ -26,7 +28,7 @@ type BaseJSONRPCNotification struct {
 
 	// Params corresponds to the JSON schema field "params".
 	// It is stored as a []byte to enable efficient marshaling and unmarshaling into custom types later on in the protocol
-	Params []byte `json:"params,omitempty" yaml:"params,omitempty" mapstructure:"params,omitempty"`
+	Params json.RawMessage `json:"params,omitempty" yaml:"params,omitempty" mapstructure:"params,omitempty"`
 }
 
 type BaseMessageType int
@@ -59,7 +61,7 @@ func NewBaseMessageRequest(request BaseJSONRPCRequest) *BaseMessage {
 type BaseCallToolRequestParams struct {
 	// Arguments corresponds to the JSON schema field "arguments".
 	// It is stored as a []byte to enable efficient marshaling and unmarshaling into custom types later on in the protocol
-	Arguments []byte `json:"arguments" yaml:"arguments" mapstructure:"arguments"`
+	Arguments json.RawMessage `json:"arguments" yaml:"arguments" mapstructure:"arguments"`
 
 	// Name corresponds to the JSON schema field "name".
 	Name string `json:"name" yaml:"name" mapstructure:"name"`

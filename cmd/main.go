@@ -17,7 +17,7 @@ func main() {
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
 	s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (mcp.ToolResponse, error) {
 		// ... handle the tool logic
-		return mcp.ToolResponse{Result: "Submitted " + arguments.Content.Title}, nil
+		return mcp.ToolResponse{Content: []mcp.Content{{Type: "text", Text: "Hello, " + arguments.Submitter + "!"}}}, nil
 	})
 
 	err := s.Serve()

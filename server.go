@@ -33,8 +33,14 @@ type ToolType struct {
 	ToolInputSchema *jsonschema.Schema
 }
 
+type Content struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
 type ToolResponse struct {
-	Result interface{} `json:"result"`
+	IsError bool      `json:"isError"`
+	Content []Content `json:"content"`
 }
 
 func NewServer(transport Transport) *Server {
@@ -83,17 +89,11 @@ func (s *Server) Tool(name string, description string, handler any) error {
 	inputSchema := reflector.ReflectFromType(argumentType)
 
 	wrappedHandler := func(arguments BaseCallToolRequestParams) (ToolResponse, error) {
-		// We're going to json serialize the arguments and unmarshal them into the correct type
-		jsonArgs, err := json.Marshal(arguments.Arguments)
-		if err != nil {
-			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
-		}
-
 		// Instantiate a struct of the type of the arguments
 		unmarshaledArguments := reflect.New(argumentType).Interface()
 
 		// Unmarshal the JSON into the correct type
-		err = json.Unmarshal(jsonArgs, &unmarshaledArguments)
+		err = json.Unmarshal(arguments.Arguments, &unmarshaledArguments)
 		if err != nil {
 			return ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
 		}
@@ -182,7 +182,7 @@ func (s *Server) Serve() error {
 			if name != params.Name {
 				continue
 			}
-			println("Calling tool: " + name)
+			//println("Calling tool: " + name)
 			return tool.Handler(params)
 		}
 		return ToolResponse{}, fmt.Errorf("unknown tool: %s", req.Method)

@@ -71,6 +71,8 @@ func (t *StdioServerTransport) Send(message JSONRPCMessage) error {
 	}
 	data = append(data, '\n')
 
+	//println("serialized message:", string(data))
+
 	t.mu.Lock()
 	defer t.mu.Unlock()
 

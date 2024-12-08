@@ -60,7 +60,6 @@ package mcp
 import (
 	"encoding/json"
 	"errors"
-	"github.com/davecgh/go-spew/spew"
 	"sync"
 )
 
@@ -103,7 +102,7 @@ func (rb *ReadBuffer) ReadMessage() (*BaseMessage, error) {
 			// Extract line
 			line := string(rb.buffer[:i])
 			rb.buffer = rb.buffer[i+1:]
-			println("serialized message:", line)
+			//println("serialized message:", line)
 			return deserializeMessage(line)
 		}
 	}
@@ -122,10 +121,10 @@ func (rb *ReadBuffer) Clear() {
 func deserializeMessage(line string) (*BaseMessage, error) {
 	var request BaseJSONRPCRequest
 	if err := json.Unmarshal([]byte(line), &request); err == nil {
-		println("unmarshaled request:", spew.Sdump(request))
+		//println("unmarshaled request:", spew.Sdump(request))
 		return NewBaseMessageRequest(request), nil
 	} else {
-		println("unmarshaled request error:", err.Error())
+		//println("unmarshaled request error:", err.Error())
 	}
 
 	var notification BaseJSONRPCNotification
