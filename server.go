@@ -99,6 +99,15 @@ func (s *Server) Tool(name string, description string, handler any) {
 		panic("handler must take exactly one argument")
 	}
 
+	if handlerType.NumOut() != 2 {
+		panic("handler must return exactly two values")
+	}
+
+	// Check that the output type is ToolResponse
+	if handlerType.Out(0) != reflect.TypeOf(ToolResponse{}) {
+		panic("handler must return mcp.ToolResponse")
+	}
+
 	argumentType := handlerType.In(0)
 
 	wrappedHandler := func(arguments CallToolRequestParamsArguments) (ToolResponse, error) {

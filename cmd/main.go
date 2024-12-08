@@ -3,11 +3,11 @@ package main
 import mcp "github.com/metoro-io/mcp-golang"
 
 type HelloType struct {
-	Hello string `mcp:"description:'description',validation:maxLength(10)"`
+	Hello string `json:"hello" mcp:"description:'This is hello, you need to pass it'"`
 }
 type MyFunctionsArguments struct {
-	Foo string    `mcp:"description:'description',validation:maxLength(10)"`
-	Bar HelloType `mcp:"description:'description'"`
+	Foo string    `json:"foo" mcp:"description:'This is foo, you need to pass it'"`
+	Bar HelloType `json:"bar" mcp:"description:'This is bar, you need to pass it'"`
 }
 
 func main() {
