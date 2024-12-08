@@ -81,11 +81,6 @@ func (s *Server) Tool(name string, description string, handler any) error {
 	}
 
 	inputSchema := reflector.ReflectFromType(argumentType)
-	//marshalJSON, err := inputSchema.MarshalJSON()
-	//if err != nil {
-	//	return err
-	//}
-	//println(string(marshalJSON))
 
 	wrappedHandler := func(arguments CallToolRequestParamsArguments) (ToolResponse, error) {
 		// We're going to json serialize the arguments and unmarshal them into the correct type
@@ -131,79 +126,6 @@ func (s *Server) Tool(name string, description string, handler any) error {
 	return nil
 }
 
-//func getToolInputSchema(argumentType reflect.Type) (ToolInputSchema, error) {
-//	var schema ToolInputSchema
-//	switch argumentType.Kind() {
-//	case reflect.Ptr:
-//		argumentType = dereferenceReflectType(argumentType)
-//		return getToolInputSchema(argumentType)
-//	case reflect.Array, reflect.Slice:
-//		// We need to get the type of the elements
-//		elementType := argumentType.Elem()
-//
-//	case reflect.Struct:
-//		// If it's a struct then we need to get the schema for each field
-//		schema.Required = []string{}
-//		m := make(map[string]interface{})
-//		for i := 0; i < argumentType.NumField(); i++ {
-//			field := argumentType.Field(i)
-//			// If it's not a pointer then add it to the required fields
-//			if field.Type.Kind() != reflect.Ptr {
-//				schema.Required = append(schema.Required, field.Name)
-//			}
-//			// Dereference the type
-//			t := dereferenceReflectType(field.Type)
-//			fieldSchema, err := getToolInputSchema(t)
-//			if err != nil {
-//				return ToolInputSchema{}, err
-//			}
-//			m[field.Name] = fieldSchema.Properties
-//		}
-//		schema.Properties = m
-//	default:
-//		if !isStandardJSONSchemaType(argumentType) {
-//			return ToolInputSchema{}, fmt.Errorf("unknown type: %s", argumentType.String())
-//		}
-//		// If it's not a struct or a pointer then it's a standard JSON schema type
-//		t, err := convertGoTypeToJSONSchemaType(argumentType)
-//		if err != nil {
-//			return ToolInputSchema{}, err
-//		}
-//		schema.Type = t
-//	}
-//	return schema, nil
-//}
-//
-//func convertGoTypeToJSONSchemaType(argumentType reflect.Type) (string, error) {
-//	switch argumentType.Kind() {
-//	case reflect.Array, reflect.Slice:
-//		return "array", nil
-//	case reflect.Map, reflect.Struct:
-//		return "object", nil
-//	case reflect.String:
-//		return "string", nil
-//	case reflect.Bool:
-//		return "boolean", nil
-//	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-//		return "integer", nil
-//	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-//		return "integer", nil
-//	case reflect.Float32, reflect.Float64:
-//		return "number", nil
-//	default:
-//		return "", fmt.Errorf("unknown type: %s", argumentType.String())
-//	}
-//}
-//
-//func isStandardJSONSchemaType(t reflect.Type) bool {
-//	switch t.String() {
-//	case "string", "bool", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "array", "slice", "map", "ptr":
-//		return true
-//	default:
-//		return false
-//	}
-//}
-
 func (s *Server) Serve() error {
 	protocol := NewProtocol(nil)
 
@@ -233,7 +155,7 @@ func (s *Server) Serve() error {
 	}
 
 	protocol.SetRequestHandler("tools/list", func(req JSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
-		m := map[string]interface{}{
+		return map[string]interface{}{
 			"tools": func() []ToolRetType {
 				var tools []ToolRetType
 				for _, tool := range s.Tools {
@@ -245,13 +167,40 @@ func (s *Server) Serve() error {
 				}
 				return tools
 			}(),
-		}
-		marshalled, err := json.Marshal(m)
+		}, nil
+	})
+
+	protocol.SetRequestHandler("tools/call", func(req JSONRPCRequest, extra RequestHandlerExtra) (interface{}, error) {
+		println("here")
+		// We need to marshal the arguments into JSON and unmarshal them into the correct type
+		jsonArgs, err := json.Marshal(req.Params)
 		if err != nil {
-			return nil, err
+			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
 		}
-		println(string(marshalled))
-		return m, nil
+		println(string(jsonArgs))
+
+		// Marshal and print extra
+		jsonExtra, err := json.Marshal(extra)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to marshal arguments: %w", err)
+		}
+		println(string(jsonExtra))
+
+		params := CallToolRequestParams{}
+		// Instantiate a struct of the type of the arguments
+		err = json.Unmarshal(jsonArgs, &params)
+		if err != nil {
+			return ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
+		}
+
+		for name, tool := range s.Tools {
+			if name != params.Name {
+				continue
+			}
+			println("Calling tool: " + name)
+			return tool.Handler(params.Arguments)
+		}
+		return ToolResponse{}, fmt.Errorf("unknown tool: %s", req.Method)
 	})
 
 	return protocol.Connect(s.transport)

@@ -60,6 +60,7 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"sync"
 )
 
@@ -102,6 +103,7 @@ func (rb *ReadBuffer) ReadMessage() (interface{}, error) {
 			// Extract line
 			line := string(rb.buffer[:i])
 			rb.buffer = rb.buffer[i+1:]
+			println("serialized message:", line)
 			return deserializeMessage(line)
 		}
 	}
@@ -126,18 +128,24 @@ func deserializeMessage(line string) (interface{}, error) {
 	// Try to unmarshal as a request first
 	var req JSONRPCRequest
 	if err := json.Unmarshal([]byte(line), &req); err == nil && req.Method != "" {
+		requestStr := spew.Sdump(req)
+		println("unmarshaled request:", requestStr)
 		return &req, nil
 	}
 
 	// Try to unmarshal as an error
 	var err JSONRPCError
 	if json.Unmarshal([]byte(line), &err) == nil && err.Error.Code != 0 {
+		errStr := spew.Sdump(err)
+		println("unmarshaled error:", errStr)
 		return &err, nil
 	}
 
 	// Try to unmarshal as a notification
 	var notif JSONRPCNotification
 	if err := json.Unmarshal([]byte(line), &notif); err == nil && notif.Method != "" {
+		str := spew.Sdump(notif)
+		println("unmarshaled notification:", str)
 		return &notif, nil
 	}
 
