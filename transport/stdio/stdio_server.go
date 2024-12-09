@@ -1,10 +1,11 @@
-package mcp
+package stdio
 
 import (
 	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/metoro-io/mcp-golang/transport"
 	"io"
 	"os"
 	"sync"
@@ -19,7 +20,7 @@ type StdioServerTransport struct {
 	readBuf   *ReadBuffer
 	onClose   func()
 	onError   func(error)
-	onMessage func(message *BaseMessage)
+	onMessage func(message *transport.BaseMessage)
 }
 
 // NewStdioServerTransport creates a new StdioServerTransport using os.Stdin and os.Stdout
@@ -64,7 +65,7 @@ func (t *StdioServerTransport) Close() error {
 }
 
 // Send sends a JSON-RPC message
-func (t *StdioServerTransport) Send(message JSONRPCMessage) error {
+func (t *StdioServerTransport) Send(message transport.JSONRPCMessage) error {
 	data, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
@@ -95,7 +96,7 @@ func (t *StdioServerTransport) SetErrorHandler(handler func(error)) {
 }
 
 // SetMessageHandler sets the handler for incoming messages
-func (t *StdioServerTransport) SetMessageHandler(handler func(message *BaseMessage)) {
+func (t *StdioServerTransport) SetMessageHandler(handler func(message *transport.BaseMessage)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.onMessage = handler
@@ -155,7 +156,7 @@ func (t *StdioServerTransport) handleError(err error) {
 	}
 }
 
-func (t *StdioServerTransport) handleMessage(msg *BaseMessage) {
+func (t *StdioServerTransport) handleMessage(msg *transport.BaseMessage) {
 	t.mu.Lock()
 	handler := t.onMessage
 	t.mu.Unlock()

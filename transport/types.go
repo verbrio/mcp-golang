@@ -1,6 +1,8 @@
-package mcp
+package transport
 
 import "encoding/json"
+
+type JSONRPCMessage interface{}
 
 type RequestId int
 

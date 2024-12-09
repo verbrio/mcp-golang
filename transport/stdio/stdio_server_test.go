@@ -1,8 +1,9 @@
-package mcp
+package stdio
 
 import (
 	"bytes"
 	"context"
+	"github.com/metoro-io/mcp-golang/transport"
 	"sync"
 	"testing"
 	"time"
@@ -14,13 +15,13 @@ func TestStdioServerTransport(t *testing.T) {
 	t.Run("basic message handling", func(t *testing.T) {
 		in := &bytes.Buffer{}
 		out := &bytes.Buffer{}
-		transport := NewStdioServerTransportWithIO(in, out)
+		tr := NewStdioServerTransportWithIO(in, out)
 
-		var receivedMsg JSONRPCMessage
+		var receivedMsg transport.JSONRPCMessage
 		var wg sync.WaitGroup
 		wg.Add(1)
 
-		transport.SetMessageHandler(func(msg JSONRPCMessage) {
+		tr.SetMessageHandler(func(msg *transport.BaseMessage) {
 			receivedMsg = msg
 			wg.Done()
 		})
@@ -52,7 +53,7 @@ func TestStdioServerTransport(t *testing.T) {
 		req, ok := receivedMsg.(*JSONRPCRequest)
 		assert.True(t, ok)
 		assert.Equal(t, "test", req.Method)
-		assert.Equal(t, RequestId(1), req.Id)
+		assert.Equal(t, mcp.RequestId(1), req.Id)
 
 		err = transport.Close()
 		assert.NoError(t, err)

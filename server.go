@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/invopop/jsonschema"
+	internaltools "github.com/metoro-io/mcp-golang/internal/tools"
+	protocol2 "github.com/metoro-io/mcp-golang/protocol"
 	"github.com/metoro-io/mcp-golang/tools"
-	"github.com/metoro-io/mcp-golang/tools/internal"
+	transport2 "github.com/metoro-io/mcp-golang/transport"
 	"reflect"
 )
 
@@ -18,7 +20,7 @@ import (
 // The interface that we're looking to support is something like [gin](https://github.com/gin-gonic/gin)s interface
 
 type Server struct {
-	transport          Transport
+	transport          transport2.Transport
 	tools              map[string]*tool
 	serverInstructions *string
 	serverName         string
@@ -28,11 +30,11 @@ type Server struct {
 type tool struct {
 	Name            string
 	Description     string
-	Handler         func(BaseCallToolRequestParams) *tools.ToolResponseSent
+	Handler         func(transport2.BaseCallToolRequestParams) *tools.ToolResponseSent
 	ToolInputSchema *jsonschema.Schema
 }
 
-func NewServer(transport Transport) *Server {
+func NewServer(transport transport2.Transport) *Server {
 	return &Server{
 		transport: transport,
 		tools:     make(map[string]*tool),
@@ -69,11 +71,11 @@ func createJsonSchemaFromHandler(handler any) *jsonschema.Schema {
 // This takes a user provided handler and returns a wrapped handler which can be used to actually answer requests
 // Concretely, it will deserialize the arguments and call the user provided handler and then serialize the response
 // If the handler returns an error, it will be serialized and sent back as a tool error rather than a protocol error
-func createWrappedToolHandler(userHandler any) func(BaseCallToolRequestParams) *tools.ToolResponseSent {
+func createWrappedToolHandler(userHandler any) func(transport2.BaseCallToolRequestParams) *tools.ToolResponseSent {
 	handlerValue := reflect.ValueOf(userHandler)
 	handlerType := handlerValue.Type()
 	argumentType := handlerType.In(0)
-	return func(arguments BaseCallToolRequestParams) *tools.ToolResponseSent {
+	return func(arguments transport2.BaseCallToolRequestParams) *tools.ToolResponseSent {
 		// Instantiate a struct of the type of the arguments
 		if !reflect.New(argumentType).CanInterface() {
 			return tools.NewToolResponseSentError(fmt.Errorf("arguments must be a struct"))
@@ -91,10 +93,8 @@ func createWrappedToolHandler(userHandler any) func(BaseCallToolRequestParams) *
 		if of.Kind() != reflect.Ptr || !of.Elem().CanInterface() {
 			return tools.NewToolResponseSentError(fmt.Errorf("arguments must be a struct"))
 		}
-		unmarshaledArguments = of.Elem().Interface()
-
 		// Call the handler with the typed arguments
-		output := handlerValue.Call([]reflect.Value{of})
+		output := handlerValue.Call([]reflect.Value{of.Elem()})
 
 		if len(output) != 2 {
 			return tools.NewToolResponseSentError(fmt.Errorf("handler must return exactly two values, got %d", len(output)))
@@ -116,14 +116,14 @@ func createWrappedToolHandler(userHandler any) func(BaseCallToolRequestParams) *
 }
 
 func (s *Server) Serve() error {
-	protocol := NewProtocol(nil)
+	protocol := protocol2.NewProtocol(nil)
 	protocol.SetRequestHandler("initialize", s.handleInitialize)
 	protocol.SetRequestHandler("tools/list", s.handleListTools)
 	protocol.SetRequestHandler("tools/call", s.handleToolCalls)
 	return protocol.Connect(s.transport)
 }
 
-func (s *Server) handleInitialize(_ *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+func (s *Server) handleInitialize(_ *transport2.BaseJSONRPCRequest, _ protocol2.RequestHandlerExtra) (interface{}, error) {
 	return InitializeResult{
 		Meta:            nil,
 		Capabilities:    s.generateCapabilities(),
@@ -136,12 +136,12 @@ func (s *Server) handleInitialize(_ *BaseJSONRPCRequest, _ RequestHandlerExtra) 
 	}, nil
 }
 
-func (s *Server) handleListTools(_ *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
-	return internal.ToolsResponse{
-		Tools: func() []internal.ToolRetType {
-			var tools []internal.ToolRetType
+func (s *Server) handleListTools(_ *transport2.BaseJSONRPCRequest, _ protocol2.RequestHandlerExtra) (interface{}, error) {
+	return internaltools.ToolsResponse{
+		Tools: func() []internaltools.ToolRetType {
+			var tools []internaltools.ToolRetType
 			for _, tool := range s.tools {
-				tools = append(tools, internal.ToolRetType{
+				tools = append(tools, internaltools.ToolRetType{
 					Name:        tool.Name,
 					Description: &tool.Description,
 					InputSchema: tool.ToolInputSchema,
@@ -152,8 +152,8 @@ func (s *Server) handleListTools(_ *BaseJSONRPCRequest, _ RequestHandlerExtra) (
 	}, nil
 }
 
-func (s *Server) handleToolCalls(req *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
-	params := BaseCallToolRequestParams{}
+func (s *Server) handleToolCalls(req *transport2.BaseJSONRPCRequest, _ protocol2.RequestHandlerExtra) (interface{}, error) {
+	params := transport2.BaseCallToolRequestParams{}
 	// Instantiate a struct of the type of the arguments
 	err := json.Unmarshal(req.Params, &params)
 	if err != nil {

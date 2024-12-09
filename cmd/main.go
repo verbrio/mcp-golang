@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/tools"
+	"github.com/metoro-io/mcp-golang/transport/stdio"
 	"io"
 	"net/http"
 	"strings"
@@ -28,9 +28,8 @@ type ToggleLights struct {
 func main() {
 	done := make(chan struct{})
 
-	s := mcp.NewServer(mcp.NewStdioServerTransport())
+	s := mcp.NewServer(stdio.NewStdioServerTransport())
 	err := s.RegisterTool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*tools.ToolResponse, error) {
-		return nil, errors.New("not implemented")
 		return tools.NewToolReponse(tools.NewToolTextResponseContent(fmt.Sprintf("Hello, %s!", arguments.Submitter))), nil
 	})
 	if err != nil {

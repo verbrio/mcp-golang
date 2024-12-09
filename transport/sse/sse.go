@@ -10,7 +10,7 @@ Key Features:
 1. Bidirectional Communication:
    - SSE for server-to-client streaming (one-way, real-time updates)
    - HTTP POST endpoints for client-to-server messages
-   
+
 2. Session Management:
    - Unique session IDs for each connection
    - Proper connection lifecycle management
@@ -55,7 +55,7 @@ Usage Example:
     }
 */
 
-package mcp
+package sse
 
 import (
 	"context"

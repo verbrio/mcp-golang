@@ -55,11 +55,12 @@
 //   - Proper cleanup on error conditions
 //
 // For more details, see the test file stdio_test.go.
-package mcp
+package stdio
 
 import (
 	"encoding/json"
 	"errors"
+	"github.com/metoro-io/mcp-golang/transport"
 	"sync"
 )
 
@@ -88,7 +89,7 @@ func (rb *ReadBuffer) Append(chunk []byte) {
 
 // ReadMessage reads a complete JSON-RPC message from the buffer.
 // Returns nil if no complete message is available.
-func (rb *ReadBuffer) ReadMessage() (*BaseMessage, error) {
+func (rb *ReadBuffer) ReadMessage() (*transport.BaseMessage, error) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
 
@@ -118,18 +119,18 @@ func (rb *ReadBuffer) Clear() {
 }
 
 // deserializeMessage deserializes a JSON-RPC message from a string.
-func deserializeMessage(line string) (*BaseMessage, error) {
-	var request BaseJSONRPCRequest
+func deserializeMessage(line string) (*transport.BaseMessage, error) {
+	var request transport.BaseJSONRPCRequest
 	if err := json.Unmarshal([]byte(line), &request); err == nil {
 		//println("unmarshaled request:", spew.Sdump(request))
-		return NewBaseMessageRequest(request), nil
+		return transport.NewBaseMessageRequest(request), nil
 	} else {
 		//println("unmarshaled request error:", err.Error())
 	}
 
-	var notification BaseJSONRPCNotification
+	var notification transport.BaseJSONRPCNotification
 	if err := json.Unmarshal([]byte(line), &notification); err == nil {
-		return NewBaseMessageNotification(notification), nil
+		return transport.NewBaseMessageNotification(notification), nil
 	}
 
 	// TODO: Add error handling and response deserialization

@@ -1,9 +1,10 @@
-package mcp
+package protocol
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/metoro-io/mcp-golang"
 	"testing"
 	"time"
 )
@@ -16,7 +17,7 @@ import (
 // 3. The protocol is ready to send and receive messages after connection
 func TestProtocol_Connect(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -36,7 +37,7 @@ func TestProtocol_Connect(t *testing.T) {
 // 4. Multiple closes are handled safely
 func TestProtocol_Close(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -70,7 +71,7 @@ func TestProtocol_Close(t *testing.T) {
 // while maintaining proper message correlation and resource cleanup.
 func TestProtocol_Request(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -129,7 +130,7 @@ func TestProtocol_Request(t *testing.T) {
 	// Test request cancellation
 	t.Run("Request cancellation", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		
+
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 			cancel()
@@ -150,7 +151,7 @@ func TestProtocol_Request(t *testing.T) {
 // 3. No response handling is attempted for notifications
 func TestProtocol_Notification(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -186,7 +187,7 @@ func TestProtocol_Notification(t *testing.T) {
 // 4. Handler errors are properly propagated
 func TestProtocol_RequestHandler(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -238,7 +239,7 @@ func TestProtocol_RequestHandler(t *testing.T) {
 // 4. Unknown notifications are handled gracefully
 func TestProtocol_NotificationHandler(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -274,7 +275,7 @@ func TestProtocol_NotificationHandler(t *testing.T) {
 // 4. Progress handling works alongside normal request processing
 func TestProtocol_Progress(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)
@@ -352,7 +353,7 @@ func TestProtocol_Progress(t *testing.T) {
 // 4. Resources are cleaned up after errors
 func TestProtocol_ErrorHandling(t *testing.T) {
 	p := NewProtocol(nil)
-	transport := newMockTransport()
+	transport := mcp.newMockTransport()
 
 	if err := p.Connect(transport); err != nil {
 		t.Fatalf("Connect failed: %v", err)

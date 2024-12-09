@@ -1,9 +1,10 @@
-package mcp
+package sse
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/metoro-io/mcp-golang"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,7 +57,7 @@ func TestSSEServerTransport(t *testing.T) {
 		rpcReq, ok := receivedMsg.(*JSONRPCRequest)
 		assert.True(t, ok)
 		assert.Equal(t, "2.0", rpcReq.Jsonrpc)
-		assert.Equal(t, RequestId(1), rpcReq.Id)
+		assert.Equal(t, mcp.RequestId(1), rpcReq.Id)
 
 		err = transport.Close()
 		assert.NoError(t, err)

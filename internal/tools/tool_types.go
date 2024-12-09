@@ -1,4 +1,4 @@
-package internal
+package tools
 
 // Definition for a tool the client can call.
 type ToolRetType struct {
