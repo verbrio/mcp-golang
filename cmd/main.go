@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/tools"
@@ -24,13 +25,12 @@ type ToggleLights struct {
 	EntityID string `json:"entity_id,omitempty"`
 }
 
-type None struct{}
-
 func main() {
 	done := make(chan struct{})
 
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
 	err := s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*tools.ToolResponse, error) {
+		return nil, errors.New("not implemented")
 		return tools.NewToolReponse(tools.NewToolTextResponseContent(fmt.Sprintf("Hello, %s!", arguments.Submitter))), nil
 	})
 	if err != nil {

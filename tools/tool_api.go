@@ -110,21 +110,21 @@ type ToolResponse struct {
 }
 
 type ToolResponseSent struct {
-	*ToolResponse
-	Error error
+	Response *ToolResponse
+	Error    error
 }
 
 // Custom JSON marshaling for ToolResponse
 func (c ToolResponseSent) MarshalJSON() ([]byte, error) {
 	if c.Error != nil {
 		errorText := c.Error.Error()
-		c.Content = []*ToolResponseContent{NewToolTextResponseContent(errorText)}
+		c.Response = NewToolReponse(NewToolTextResponseContent(errorText))
 	}
 	return json.Marshal(struct {
 		Content []*ToolResponseContent `json:"content" yaml:"content" mapstructure:"content"`
 		IsError bool                   `json:"isError" yaml:"isError" mapstructure:"isError"`
 	}{
-		Content: c.Content,
+		Content: c.Response.Content,
 		IsError: c.Error != nil,
 	})
 }
@@ -205,7 +205,7 @@ func NewToolResponseSentError(err error) *ToolResponseSent {
 // NewToolResponseSent creates a new ToolResponseSent
 func NewToolResponseSent(response *ToolResponse) *ToolResponseSent {
 	return &ToolResponseSent{
-		ToolResponse: response,
+		Response: response,
 	}
 }
 
