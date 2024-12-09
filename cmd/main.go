@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/metoro-io/mcp-golang"
+	"github.com/metoro-io/mcp-golang/tools"
 	"io"
 	"net/http"
 	"strings"
@@ -29,40 +30,12 @@ func main() {
 	done := make(chan struct{})
 
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
-	err := s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (mcp.ToolResponse, error) {
-		return mcp.ToolResponse{Content: []mcp.Content{{Type: "text", Text: "Hello, " + arguments.Submitter + "!"}}}, nil
+	err := s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*tools.ToolResponse, error) {
+		return tools.NewToolTextResponse(fmt.Sprintf("Hello, %s!", arguments.Submitter)), nil
 	})
 	if err != nil {
 		panic(err)
 	}
-
-	err = s.Tool("get_lights", "Get the state of all lights in the house", func(arguments None) (mcp.ToolResponse, error) {
-		// Configuration
-		hassURL := "http://home.net:8123"
-		// Replace with your actual token
-		token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI1YmZkOGMwMmJjNGI0Y2ZkODdiZmExMTA5ZDQwZTg5YSIsImlhdCI6MTczMzY5NTc3MSwiZXhwIjoyMDQ5MDU1NzcxfQ.cCmgbnC_kXOIXgrmf59GPw8cYZYGx6pHjzQIZkYc72Q"
-
-		lights, err := getLights(hassURL, token)
-		if err != nil {
-			return mcp.ToolResponse{}, err
-		}
-		output := displayLights(lights)
-		return mcp.ToolResponse{Content: []mcp.Content{{Type: "text", Text: output}}}, nil
-	})
-
-	// Tool function to toggle lights
-	err = s.Tool("control_light", "Toggle a specific light", func(arguments ToggleLights) (mcp.ToolResponse, error) {
-		hassURL := "http://home.net:8123"
-		token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI1YmZkOGMwMmJjNGI0Y2ZkODdiZmExMTA5ZDQwZTg5YSIsImlhdCI6MTczMzY5NTc3MSwiZXhwIjoyMDQ5MDU1NzcxfQ.cCmgbnC_kXOIXgrmf59GPw8cYZYGx6pHjzQIZkYc72Q"
-
-		err := toggleLight(hassURL, token, arguments.EntityID)
-		if err != nil {
-			return mcp.ToolResponse{}, err
-		}
-
-		output := fmt.Sprintf("Successfully toggled %s", arguments.EntityID)
-		return mcp.ToolResponse{Content: []mcp.Content{{Type: "text", Text: output}}}, nil
-	})
 
 	err = s.Serve()
 	if err != nil {

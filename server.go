@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/invopop/jsonschema"
+	"github.com/metoro-io/mcp-golang/tools"
 	"reflect"
 )
 
@@ -26,7 +27,7 @@ type Server struct {
 type ToolType struct {
 	Name            string
 	Description     string
-	Handler         func(BaseCallToolRequestParams) (ToolResponse, error)
+	Handler         func(BaseCallToolRequestParams) (tools.ToolResponse, error)
 	ToolInputSchema *jsonschema.Schema
 }
 
@@ -78,14 +79,14 @@ func (s *Server) Tool(name string, description string, handler any) error {
 
 	inputSchema := reflector.ReflectFromType(argumentType)
 
-	wrappedHandler := func(arguments BaseCallToolRequestParams) (ToolResponse, error) {
+	wrappedHandler := func(arguments BaseCallToolRequestParams) (tools.ToolResponse, error) {
 		// Instantiate a struct of the type of the arguments
 		unmarshaledArguments := reflect.New(argumentType).Interface()
 
 		// Unmarshal the JSON into the correct type
 		err = json.Unmarshal(arguments.Arguments, &unmarshaledArguments)
 		if err != nil {
-			return ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
+			return tools.ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
 		}
 
 		// Need to dereference the unmarshaled arguments
@@ -95,15 +96,15 @@ func (s *Server) Tool(name string, description string, handler any) error {
 		output := handlerValue.Call([]reflect.Value{reflect.ValueOf(unmarshaledArguments)})
 
 		if len(output) != 2 {
-			return ToolResponse{}, fmt.Errorf("tool handler must return exactly two values, got %d", len(output))
+			return tools.ToolResponse{}, fmt.Errorf("tool handler must return exactly two values, got %d", len(output))
 		}
 
 		tool := output[0].Interface()
 		errorOut := output[1].Interface()
 		if errorOut == nil {
-			return tool.(ToolResponse), nil
+			return tool.(tools.ToolResponse), nil
 		}
-		return tool.(ToolResponse), errorOut.(error)
+		return tool.(tools.ToolResponse), errorOut.(error)
 	}
 
 	s.Tools[name] = &ToolType{
@@ -207,9 +208,9 @@ func validateHandler(handler any) error {
 		return fmt.Errorf("handler must return exactly two values, got %d", handlerType.NumOut())
 	}
 
-	// Check that the output type is ToolResponse
-	if handlerType.Out(0) != reflect.TypeOf(ToolResponse{}) {
-		return fmt.Errorf("handler must return mcp.ToolResponse, got %s", handlerType.Out(0).Name())
+	// Check that the output type is *tools.ToolResponse
+	if handlerType.Out(0) != reflect.PointerTo(reflect.TypeOf(tools.ToolResponse{})) {
+		return fmt.Errorf("handler must return *tools.ToolResponse, got %s", handlerType.Out(0).Name())
 	}
 
 	// Check that the output type is error

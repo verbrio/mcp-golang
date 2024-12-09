@@ -48,27 +48,6 @@ func (j *AnnotatedAnnotations) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *tools.BlobResourceContents) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if _, ok := raw["blob"]; raw != nil && !ok {
-		return fmt.Errorf("field blob in BlobResourceContents: required")
-	}
-	if _, ok := raw["uri"]; raw != nil && !ok {
-		return fmt.Errorf("field uri in BlobResourceContents: required")
-	}
-	type Plain tools.BlobResourceContents
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = tools.BlobResourceContents(plain)
-	return nil
-}
-
 // Used by the client to invoke a tool provided by the server.
 type CallToolRequest struct {
 	// Method corresponds to the JSON schema field "method".
@@ -142,8 +121,8 @@ type CallToolResult struct {
 	// to attach additional metadata to their responses.
 	Meta CallToolResultMeta `json:"_meta,omitempty" yaml:"_meta,omitempty" mapstructure:"_meta,omitempty"`
 
-	// Content corresponds to the JSON schema field "Content".
-	Content []interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
+	// Content corresponds to the JSON schema field "ToolResponse".
+	Content []interface{} `json:"ToolResponse" yaml:"ToolResponse" mapstructure:"ToolResponse"`
 
 	// Whether the tool call ended in an error.
 	//
@@ -161,8 +140,8 @@ func (j *CallToolResult) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["Content"]; raw != nil && !ok {
-		return fmt.Errorf("field Content in CallToolResult: required")
+	if _, ok := raw["ToolResponse"]; raw != nil && !ok {
+		return fmt.Errorf("field ToolResponse in CallToolResult: required")
 	}
 	type Plain CallToolResult
 	var plain Plain
@@ -557,8 +536,8 @@ type CreateMessageResult struct {
 	// to attach additional metadata to their responses.
 	Meta CreateMessageResultMeta `json:"_meta,omitempty" yaml:"_meta,omitempty" mapstructure:"_meta,omitempty"`
 
-	// Content corresponds to the JSON schema field "Content".
-	Content interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
+	// Content corresponds to the JSON schema field "ToolResponse".
+	Content interface{} `json:"ToolResponse" yaml:"ToolResponse" mapstructure:"ToolResponse"`
 
 	// The name of the model that generated the message.
 	Model string `json:"model" yaml:"model" mapstructure:"model"`
@@ -580,8 +559,8 @@ func (j *CreateMessageResult) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["Content"]; raw != nil && !ok {
-		return fmt.Errorf("field Content in CreateMessageResult: required")
+	if _, ok := raw["ToolResponse"]; raw != nil && !ok {
+		return fmt.Errorf("field ToolResponse in CreateMessageResult: required")
 	}
 	if _, ok := raw["model"]; raw != nil && !ok {
 		return fmt.Errorf("field model in CreateMessageResult: required")
@@ -630,27 +609,6 @@ func (j *EmbeddedResourceAnnotations) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
 	}
 	*j = EmbeddedResourceAnnotations(plain)
-	return nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *tools.EmbeddedResource) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if _, ok := raw["resource"]; raw != nil && !ok {
-		return fmt.Errorf("field resource in EmbeddedResource: required")
-	}
-	if _, ok := raw["type"]; raw != nil && !ok {
-		return fmt.Errorf("field type in EmbeddedResource: required")
-	}
-	type Plain tools.EmbeddedResource
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = tools.EmbeddedResource(plain)
 	return nil
 }
 
@@ -777,30 +735,6 @@ func (j *ImageContentAnnotations) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
 	}
 	*j = ImageContentAnnotations(plain)
-	return nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *tools.ImageContent) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if _, ok := raw["data"]; raw != nil && !ok {
-		return fmt.Errorf("field data in ImageContent: required")
-	}
-	if _, ok := raw["mimeType"]; raw != nil && !ok {
-		return fmt.Errorf("field mimeType in ImageContent: required")
-	}
-	if _, ok := raw["type"]; raw != nil && !ok {
-		return fmt.Errorf("field type in ImageContent: required")
-	}
-	type Plain tools.ImageContent
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = tools.ImageContent(plain)
 	return nil
 }
 
@@ -2047,8 +1981,8 @@ func (j *PromptListChangedNotification) UnmarshalJSON(b []byte) error {
 // This is similar to `SamplingMessage`, but also supports the embedding of
 // resources from the MCP server.
 type PromptMessage struct {
-	// Content corresponds to the JSON schema field "Content".
-	Content interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
+	// Content corresponds to the JSON schema field "ToolResponse".
+	Content interface{} `json:"ToolResponse" yaml:"ToolResponse" mapstructure:"ToolResponse"`
 
 	// Role corresponds to the JSON schema field "role".
 	Role tools.Role `json:"role" yaml:"role" mapstructure:"role"`
@@ -2060,8 +1994,8 @@ func (j *PromptMessage) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["Content"]; raw != nil && !ok {
-		return fmt.Errorf("field Content in PromptMessage: required")
+	if _, ok := raw["ToolResponse"]; raw != nil && !ok {
+		return fmt.Errorf("field ToolResponse in PromptMessage: required")
 	}
 	if _, ok := raw["role"]; raw != nil && !ok {
 		return fmt.Errorf("field role in PromptMessage: required")
@@ -2577,26 +2511,6 @@ var enumValues_Role = []interface{}{
 	"user",
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *tools.Role) UnmarshalJSON(b []byte) error {
-	var v string
-	if err := json.Unmarshal(b, &v); err != nil {
-		return err
-	}
-	var ok bool
-	for _, expected := range enumValues_Role {
-		if reflect.DeepEqual(v, expected) {
-			ok = true
-			break
-		}
-	}
-	if !ok {
-		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_Role, v)
-	}
-	*j = tools.Role(v)
-	return nil
-}
-
 // Represents a root directory or file that the server can operate on.
 type Root struct {
 	// An optional name for the root. This can be used to provide a human-readable
@@ -2674,8 +2588,8 @@ func (j *RootsListChangedNotification) UnmarshalJSON(b []byte) error {
 
 // Describes a message issued to or received from an LLM API.
 type SamplingMessage struct {
-	// Content corresponds to the JSON schema field "Content".
-	Content interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
+	// Content corresponds to the JSON schema field "ToolResponse".
+	Content interface{} `json:"ToolResponse" yaml:"ToolResponse" mapstructure:"ToolResponse"`
 
 	// Role corresponds to the JSON schema field "role".
 	Role tools.Role `json:"role" yaml:"role" mapstructure:"role"`
@@ -2687,8 +2601,8 @@ func (j *SamplingMessage) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["Content"]; raw != nil && !ok {
-		return fmt.Errorf("field Content in SamplingMessage: required")
+	if _, ok := raw["ToolResponse"]; raw != nil && !ok {
+		return fmt.Errorf("field ToolResponse in SamplingMessage: required")
 	}
 	if _, ok := raw["role"]; raw != nil && !ok {
 		return fmt.Errorf("field role in SamplingMessage: required")
@@ -2894,48 +2808,6 @@ func (j *TextContentAnnotations) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("field %s: must be >= %v", "priority", 0)
 	}
 	*j = TextContentAnnotations(plain)
-	return nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *tools.TextContent) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if _, ok := raw["text"]; raw != nil && !ok {
-		return fmt.Errorf("field text in TextContent: required")
-	}
-	if _, ok := raw["type"]; raw != nil && !ok {
-		return fmt.Errorf("field type in TextContent: required")
-	}
-	type Plain tools.TextContent
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = tools.TextContent(plain)
-	return nil
-}
-
-// UnmarshalJSON implements json.Unmarshaler.
-func (j *tools.TextResourceContents) UnmarshalJSON(b []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(b, &raw); err != nil {
-		return err
-	}
-	if _, ok := raw["text"]; raw != nil && !ok {
-		return fmt.Errorf("field text in TextResourceContents: required")
-	}
-	if _, ok := raw["uri"]; raw != nil && !ok {
-		return fmt.Errorf("field uri in TextResourceContents: required")
-	}
-	type Plain tools.TextResourceContents
-	var plain Plain
-	if err := json.Unmarshal(b, &plain); err != nil {
-		return err
-	}
-	*j = tools.TextResourceContents(plain)
 	return nil
 }
 

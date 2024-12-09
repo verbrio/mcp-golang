@@ -8,7 +8,7 @@ const RoleUser Role = "user"
 type ContentAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate Content useful for multiple
+	// It can include multiple entries to indicate ToolResponse useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
 	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
@@ -22,7 +22,7 @@ type ContentAnnotations struct {
 
 // Text provided to or from an LLM.
 type TextContent struct {
-	// The text Content of the message.
+	// The text ToolResponse of the message.
 	Text string `json:"text" yaml:"text" mapstructure:"text"`
 }
 
@@ -85,9 +85,9 @@ const (
 	ContentTypeError            ContentType = "error"
 )
 
-// This is a union type of all the different Content that can be sent back to the client.
-// We allow creation through constructors only to make sure that the Content is valid.
-type Content struct {
+// This is a union type of all the different ToolResponse that can be sent back to the client.
+// We allow creation through constructors only to make sure that the ToolResponse is valid.
+type ToolResponse struct {
 	Type             ContentType
 	TextContent      *TextContent
 	ImageContent     *ImageContent
@@ -96,43 +96,43 @@ type Content struct {
 	Error            error
 }
 
-func (c *Content) WithAnnotations(annotations ContentAnnotations) *Content {
+func (c *ToolResponse) WithAnnotations(annotations ContentAnnotations) *ToolResponse {
 	c.Annotations = &annotations
 	return c
 }
 
-// NewToolError creates a new Content that represents an error.
+// NewToolError creates a new ToolResponse that represents an error.
 // This is used to create a result that will be returned to the client as an error for a tool call.
-func NewToolError(err error) *Content {
-	return &Content{
+func NewToolError(err error) *ToolResponse {
+	return &ToolResponse{
 		Type:  ContentTypeError,
 		Error: err,
 	}
 }
 
-// NewImageContent creates a new Content that is an image.
+// NewToolImageResponse creates a new ToolResponse that is an image.
 // The given data is base64-encoded
-func NewImageContent(base64EncodedStringData string, mimeType string) *Content {
-	return &Content{
+func NewToolImageResponse(base64EncodedStringData string, mimeType string) *ToolResponse {
+	return &ToolResponse{
 		Type:         ContentTypeImage,
 		ImageContent: &ImageContent{Data: base64EncodedStringData, MimeType: mimeType},
 	}
 }
 
-// NewTextContent creates a new Content that is a simple text string.
+// NewToolTextResponse creates a new ToolResponse that is a simple text string.
 // The client will render this as a single string.
-func NewTextContent(content string) *Content {
-	return &Content{
+func NewToolTextResponse(content string) *ToolResponse {
+	return &ToolResponse{
 		Type:        ContentTypeText,
 		TextContent: &TextContent{Text: content},
 	}
 }
 
-// NewBlobResource creates a new Content that is a blob of binary data.
+// NewToolBlobResourceResponse creates a new ToolResponse that is a blob of binary data.
 // The given data is base64-encoded; the client will decode it.
 // The client will render this as a blob; it will not be human-readable.
-func NewBlobResource(uri string, base64EncodedData string, mimeType string) *Content {
-	return &Content{
+func NewToolBlobResourceResponse(uri string, base64EncodedData string, mimeType string) *ToolResponse {
+	return &ToolResponse{
 		Type: ContentTypeEmbeddedResource,
 		EmbeddedResource: &EmbeddedResource{
 			EmbeddedResourceType: EmbeddedResourceTypeBlob,
@@ -144,11 +144,11 @@ func NewBlobResource(uri string, base64EncodedData string, mimeType string) *Con
 	}
 }
 
-// NewTextResource creates a new Content that is an embedded resource of type "text".
+// NewToolTextResourceResponse creates a new ToolResponse that is an embedded resource of type "text".
 // The given text is embedded in the response as a TextResourceContents, which
 // contains the given MIME type and URI. The text is not base64-encoded.
-func NewTextResource(uri string, text string, mimeType string) *Content {
-	return &Content{
+func NewToolTextResourceResponse(uri string, text string, mimeType string) *ToolResponse {
+	return &ToolResponse{
 		Type: ContentTypeEmbeddedResource,
 		EmbeddedResource: &EmbeddedResource{
 			EmbeddedResourceType: EmbeddedResourceTypeText,
