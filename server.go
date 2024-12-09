@@ -50,7 +50,7 @@ func (s *Server) RegisterTool(name string, description string, handler any) erro
 	s.tools[name] = &tool{
 		Name:            name,
 		Description:     description,
-		Handler:         createWrappedHandler(handler),
+		Handler:         createWrappedToolHandler(handler),
 		ToolInputSchema: inputSchema,
 	}
 
@@ -69,7 +69,7 @@ func createJsonSchemaFromHandler(handler any) *jsonschema.Schema {
 // This takes a user provided handler and returns a wrapped handler which can be used to actually answer requests
 // Concretely, it will deserialize the arguments and call the user provided handler and then serialize the response
 // If the handler returns an error, it will be serialized and sent back as a tool error rather than a protocol error
-func createWrappedHandler(userHandler any) func(BaseCallToolRequestParams) *tools.ToolResponseSent {
+func createWrappedToolHandler(userHandler any) func(BaseCallToolRequestParams) *tools.ToolResponseSent {
 	handlerValue := reflect.ValueOf(userHandler)
 	handlerType := handlerValue.Type()
 	argumentType := handlerType.In(0)
