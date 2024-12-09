@@ -2903,10 +2903,10 @@ func (j *Tool) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if _, ok := raw["inputSchema"]; raw != nil && !ok {
-		return fmt.Errorf("field inputSchema in Tool: required")
+		return fmt.Errorf("field inputSchema in RegisterTool: required")
 	}
 	if _, ok := raw["name"]; raw != nil && !ok {
-		return fmt.Errorf("field name in Tool: required")
+		return fmt.Errorf("field name in RegisterTool: required")
 	}
 	type Plain Tool
 	var plain Plain

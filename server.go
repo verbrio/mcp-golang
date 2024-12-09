@@ -18,48 +18,28 @@ import (
 
 type Server struct {
 	transport          Transport
-	Tools              map[string]*ToolType
+	tools              map[string]*toolType
 	serverInstructions *string
 	serverName         string
 	serverVersion      string
 }
 
-type ToolType struct {
+type toolType struct {
 	Name            string
 	Description     string
 	Handler         func(BaseCallToolRequestParams) *tools.ToolResponseSent
 	ToolInputSchema *jsonschema.Schema
 }
 
-type Content struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
-
-type ToolResponse struct {
-	IsError bool      `json:"isError"`
-	Content []Content `json:"Content"`
-}
-
 func NewServer(transport Transport) *Server {
 	return &Server{
 		transport: transport,
-		Tools:     make(map[string]*ToolType),
+		tools:     make(map[string]*toolType),
 	}
 }
 
-// Tool registers a new tool with the server
-func (s *Server) Tool(name string, description string, handler any) error {
-	err := validateHandler(handler)
-	if err != nil {
-		return err
-	}
-	handlerValue := reflect.ValueOf(handler)
-	handlerType := handlerValue.Type()
-
-	argumentType := handlerType.In(0)
-
-	reflector := jsonschema.Reflector{
+var (
+	jsonSchemaReflector = jsonschema.Reflector{
 		BaseSchemaID:               "",
 		Anonymous:                  true,
 		AssignAnchor:               false,
@@ -76,45 +56,76 @@ func (s *Server) Tool(name string, description string, handler any) error {
 		AdditionalFields:           nil,
 		CommentMap:                 nil,
 	}
+)
 
-	inputSchema := reflector.ReflectFromType(argumentType)
+// RegisterTool registers a new tool with the server
+func (s *Server) RegisterTool(name string, description string, handler any) error {
+	err := validateHandler(handler)
+	if err != nil {
+		return err
+	}
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+	argumentType := handlerType.In(0)
+	inputSchema := jsonSchemaReflector.ReflectFromType(argumentType)
 
-	wrappedHandler := func(arguments BaseCallToolRequestParams) *tools.ToolResponseSent {
+	s.tools[name] = &toolType{
+		Name:            name,
+		Description:     description,
+		Handler:         createWrappedHandler(handler),
+		ToolInputSchema: inputSchema,
+	}
+
+	return nil
+}
+
+// This takes a user provided handler and returns a wrapped handler which can be used to actually answer requests
+// Concretely, it will deserialize the arguments and call the user provided handler and then serialize the response
+// If the handler returns an error, it will be serialized and sent back as a tool error rather than a protocol error
+func createWrappedHandler(userHandler any) func(BaseCallToolRequestParams) *tools.ToolResponseSent {
+	handlerValue := reflect.ValueOf(userHandler)
+	handlerType := handlerValue.Type()
+	argumentType := handlerType.In(0)
+	return func(arguments BaseCallToolRequestParams) *tools.ToolResponseSent {
 		// Instantiate a struct of the type of the arguments
+		if !reflect.New(argumentType).CanInterface() {
+			return tools.NewToolResponseSentError(fmt.Errorf("arguments must be a struct"))
+		}
 		unmarshaledArguments := reflect.New(argumentType).Interface()
 
 		// Unmarshal the JSON into the correct type
-		err = json.Unmarshal(arguments.Arguments, &unmarshaledArguments)
+		err := json.Unmarshal(arguments.Arguments, &unmarshaledArguments)
 		if err != nil {
 			return tools.NewToolResponseSentError(fmt.Errorf("failed to unmarshal arguments: %w", err))
 		}
 
 		// Need to dereference the unmarshaled arguments
-		unmarshaledArguments = reflect.ValueOf(unmarshaledArguments).Elem().Interface()
+		of := reflect.ValueOf(unmarshaledArguments)
+		if of.Kind() != reflect.Ptr || !of.Elem().CanInterface() {
+			return tools.NewToolResponseSentError(fmt.Errorf("arguments must be a struct"))
+		}
+		unmarshaledArguments = of.Elem().Interface()
 
 		// Call the handler with the typed arguments
-		output := handlerValue.Call([]reflect.Value{reflect.ValueOf(unmarshaledArguments)})
+		output := handlerValue.Call([]reflect.Value{of})
 
 		if len(output) != 2 {
 			return tools.NewToolResponseSentError(fmt.Errorf("handler must return exactly two values, got %d", len(output)))
 		}
 
+		if !output[0].CanInterface() {
+			return tools.NewToolResponseSentError(fmt.Errorf("handler must return a struct, got %s", output[0].Type().Name()))
+		}
 		tool := output[0].Interface()
+		if !output[1].CanInterface() {
+			return tools.NewToolResponseSentError(fmt.Errorf("handler must return an error, got %s", output[1].Type().Name()))
+		}
 		errorOut := output[1].Interface()
 		if errorOut == nil {
 			return tools.NewToolResponseSent(tool.(*tools.ToolResponse))
 		}
 		return tools.NewToolResponseSentError(errorOut.(error))
 	}
-
-	s.Tools[name] = &ToolType{
-		Name:            name,
-		Description:     description,
-		Handler:         wrappedHandler,
-		ToolInputSchema: inputSchema,
-	}
-
-	return nil
 }
 
 func (s *Server) Serve() error {
@@ -149,7 +160,7 @@ func (s *Server) Serve() error {
 		return map[string]interface{}{
 			"tools": func() []ToolRetType {
 				var tools []ToolRetType
-				for _, tool := range s.Tools {
+				for _, tool := range s.tools {
 					tools = append(tools, ToolRetType{
 						Name:        tool.Name,
 						Description: &tool.Description,
@@ -166,16 +177,16 @@ func (s *Server) Serve() error {
 		// Instantiate a struct of the type of the arguments
 		err := json.Unmarshal(req.Params, &params)
 		if err != nil {
-			return ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal arguments: %w", err)
 		}
 
-		for name, tool := range s.Tools {
+		for name, tool := range s.tools {
 			if name != params.Name {
 				continue
 			}
 			return tool.Handler(params), nil
 		}
-		return ToolResponse{}, fmt.Errorf("unknown tool: %s", req.Method)
+		return nil, fmt.Errorf("unknown tool: %s", req.Method)
 	})
 
 	return protocol.Connect(s.transport)
@@ -185,7 +196,7 @@ func (s *Server) generateCapabilities() ServerCapabilities {
 	f := false
 	return ServerCapabilities{
 		Tools: func() *ServerCapabilitiesTools {
-			if s.Tools == nil {
+			if s.tools == nil {
 				return nil
 			}
 			return &ServerCapabilitiesTools{

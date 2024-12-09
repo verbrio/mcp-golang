@@ -29,7 +29,7 @@ func main() {
 	done := make(chan struct{})
 
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
-	err := s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*tools.ToolResponse, error) {
+	err := s.RegisterTool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*tools.ToolResponse, error) {
 		return nil, errors.New("not implemented")
 		return tools.NewToolReponse(tools.NewToolTextResponseContent(fmt.Sprintf("Hello, %s!", arguments.Submitter))), nil
 	})
