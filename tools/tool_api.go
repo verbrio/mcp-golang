@@ -1,5 +1,11 @@
 package tools
 
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/tidwall/sjson"
+)
+
 type Role string
 
 const RoleAssistant Role = "assistant"
@@ -76,22 +82,50 @@ type EmbeddedResource struct {
 	BlobResourceContents *BlobResourceContents
 }
 
+// Custom JSON marshaling for EmbeddedResource
+func (c EmbeddedResource) MarshalJSON() ([]byte, error) {
+	switch c.EmbeddedResourceType {
+	case EmbeddedResourceTypeBlob:
+		return json.Marshal(c.BlobResourceContents)
+	case EmbeddedResourceTypeText:
+		return json.Marshal(c.TextResourceContents)
+	default:
+		return nil, fmt.Errorf("unknown embedded resource type: %s", c.EmbeddedResourceType)
+	}
+}
+
 type ContentType string
 
 const (
+	// The value is the value of the "type" field in the ToolResponseContent so do not change
 	ContentTypeText             ContentType = "text"
 	ContentTypeImage            ContentType = "image"
-	ContentTypeEmbeddedResource ContentType = "embedded-resource"
+	ContentTypeEmbeddedResource ContentType = "resource"
 )
 
 // This is a union type of all the different ToolResponse that can be sent back to the client.
 // We allow creation through constructors only to make sure that the ToolResponse is valid.
 type ToolResponse struct {
-	Content []ToolResponseContent
+	Content []*ToolResponseContent
 	Error   error
 }
 
-func NewToolReponse(content ...ToolResponseContent) *ToolResponse {
+// Custom JSON marshaling for ToolResponse
+func (c ToolResponse) MarshalJSON() ([]byte, error) {
+	if c.Error != nil {
+		errorText := c.Error.Error()
+		c.Content = []*ToolResponseContent{NewToolTextResponseContent(errorText)}
+	}
+	return json.Marshal(struct {
+		Content []*ToolResponseContent `json:"content" yaml:"content" mapstructure:"content"`
+		IsError bool                   `json:"isError" yaml:"isError" mapstructure:"isError"`
+	}{
+		Content: c.Content,
+		IsError: c.Error != nil,
+	})
+}
+
+func NewToolReponse(content ...*ToolResponseContent) *ToolResponse {
 	return &ToolResponse{
 		Content: content,
 	}
@@ -105,7 +139,51 @@ type ToolResponseContent struct {
 	Annotations      *ContentAnnotations
 }
 
-// Custom JSON marshaling for ToolResponse.
+// Custom JSON marshaling for ToolResponse Content
+func (c ToolResponseContent) MarshalJSON() ([]byte, error) {
+	rawJson := []byte{}
+
+	switch c.Type {
+	case ContentTypeText:
+		j, err := json.Marshal(c.TextContent)
+		if err != nil {
+			return nil, err
+		}
+		rawJson = j
+	case ContentTypeImage:
+		j, err := json.Marshal(c.ImageContent)
+		if err != nil {
+			return nil, err
+		}
+		rawJson = j
+	case ContentTypeEmbeddedResource:
+		j, err := json.Marshal(c.EmbeddedResource)
+		if err != nil {
+			return nil, err
+		}
+		rawJson = j
+	default:
+		return nil, fmt.Errorf("unknown content type: %s", c.Type)
+	}
+
+	// Add the type
+	rawJson, err := sjson.SetBytes(rawJson, "type", string(c.Type))
+	if err != nil {
+		return nil, err
+	}
+	// Add the annotations
+	if c.Annotations != nil {
+		marshal, err := json.Marshal(c.Annotations)
+		if err != nil {
+			return nil, err
+		}
+		rawJson, err = sjson.SetBytes(rawJson, "annotations", marshal)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rawJson, nil
+}
 
 func (c *ToolResponseContent) WithAnnotations(annotations ContentAnnotations) *ToolResponseContent {
 	c.Annotations = &annotations
