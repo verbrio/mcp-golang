@@ -108,12 +108,12 @@ func TestSSEServerTransport(t *testing.T) {
 		assert.NotNil(t, receivedErr)
 		assert.Contains(t, receivedErr.Error(), "invalid")
 
-		// Test invalid content type
+		// Test invalid Content type
 		req = httptest.NewRequest(http.MethodPost, "/messages", strings.NewReader("{}"))
 		req.Header.Set("Content-Type", "text/plain")
 		err = transport.HandlePostMessage(req)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported content type")
+		assert.Contains(t, err.Error(), "unsupported Content type")
 
 		// Test invalid method
 		req = httptest.NewRequest(http.MethodGet, "/messages", nil)

@@ -59,7 +59,7 @@ package mcp
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"sync"
 )
 
@@ -88,7 +88,7 @@ func (rb *ReadBuffer) Append(chunk []byte) {
 
 // ReadMessage reads a complete JSON-RPC message from the buffer.
 // Returns nil if no complete message is available.
-func (rb *ReadBuffer) ReadMessage() (interface{}, error) {
+func (rb *ReadBuffer) ReadMessage() (*BaseMessage, error) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
 
@@ -102,6 +102,7 @@ func (rb *ReadBuffer) ReadMessage() (interface{}, error) {
 			// Extract line
 			line := string(rb.buffer[:i])
 			rb.buffer = rb.buffer[i+1:]
+			//println("serialized message:", line)
 			return deserializeMessage(line)
 		}
 	}
@@ -117,30 +118,22 @@ func (rb *ReadBuffer) Clear() {
 }
 
 // deserializeMessage deserializes a JSON-RPC message from a string.
-func deserializeMessage(line string) (interface{}, error) {
-	var msg map[string]interface{}
-	if err := json.Unmarshal([]byte(line), &msg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON-RPC message: %w", err)
+func deserializeMessage(line string) (*BaseMessage, error) {
+	var request BaseJSONRPCRequest
+	if err := json.Unmarshal([]byte(line), &request); err == nil {
+		//println("unmarshaled request:", spew.Sdump(request))
+		return NewBaseMessageRequest(request), nil
+	} else {
+		//println("unmarshaled request error:", err.Error())
 	}
 
-	// Try to unmarshal as a request first
-	var req JSONRPCRequest
-	if err := json.Unmarshal([]byte(line), &req); err == nil && req.Method != "" {
-		return &req, nil
+	var notification BaseJSONRPCNotification
+	if err := json.Unmarshal([]byte(line), &notification); err == nil {
+		return NewBaseMessageNotification(notification), nil
 	}
 
-	// Try to unmarshal as an error
-	var err JSONRPCError
-	if json.Unmarshal([]byte(line), &err) == nil && err.Error.Code != 0 {
-		return &err, nil
-	}
-
-	// Try to unmarshal as a notification
-	var notif JSONRPCNotification
-	if err := json.Unmarshal([]byte(line), &notif); err == nil && notif.Method != "" {
-		return &notif, nil
-	}
+	// TODO: Add error handling and response deserialization
 
 	// Must be a response
-	return msg, nil
+	return nil, errors.New("failed to unmarshal JSON-RPC message, unrecognized type")
 }

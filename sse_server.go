@@ -37,7 +37,7 @@ func (s *SSEServerTransport) HandlePostMessage(r *http.Request) error {
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		return fmt.Errorf("unsupported content type: %s", contentType)
+		return fmt.Errorf("unsupported Content type: %s", contentType)
 	}
 
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxMessageSize))
