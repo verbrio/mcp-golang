@@ -2,7 +2,10 @@
 
 package mcp
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/metoro-io/mcp-golang/tools"
+)
 import "fmt"
 import "reflect"
 
@@ -16,9 +19,9 @@ type Annotated struct {
 type AnnotatedAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate content useful for multiple
+	// It can include multiple entries to indicate Content useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
+	Audience []tools.Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
 	// Describes how important this data is for operating the server.
 	//
@@ -45,19 +48,8 @@ func (j *AnnotatedAnnotations) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type BlobResourceContents struct {
-	// A base64-encoded string representing the binary data of the item.
-	Blob string `json:"blob" yaml:"blob" mapstructure:"blob"`
-
-	// The MIME type of this resource, if known.
-	MimeType *string `json:"mimeType,omitempty" yaml:"mimeType,omitempty" mapstructure:"mimeType,omitempty"`
-
-	// The URI of this resource.
-	Uri string `json:"uri" yaml:"uri" mapstructure:"uri"`
-}
-
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *BlobResourceContents) UnmarshalJSON(b []byte) error {
+func (j *tools.BlobResourceContents) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
@@ -68,12 +60,12 @@ func (j *BlobResourceContents) UnmarshalJSON(b []byte) error {
 	if _, ok := raw["uri"]; raw != nil && !ok {
 		return fmt.Errorf("field uri in BlobResourceContents: required")
 	}
-	type Plain BlobResourceContents
+	type Plain tools.BlobResourceContents
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	*j = BlobResourceContents(plain)
+	*j = tools.BlobResourceContents(plain)
 	return nil
 }
 
@@ -150,8 +142,8 @@ type CallToolResult struct {
 	// to attach additional metadata to their responses.
 	Meta CallToolResultMeta `json:"_meta,omitempty" yaml:"_meta,omitempty" mapstructure:"_meta,omitempty"`
 
-	// Content corresponds to the JSON schema field "content".
-	Content []interface{} `json:"content" yaml:"content" mapstructure:"content"`
+	// Content corresponds to the JSON schema field "Content".
+	Content []interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
 
 	// Whether the tool call ended in an error.
 	//
@@ -169,8 +161,8 @@ func (j *CallToolResult) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["content"]; raw != nil && !ok {
-		return fmt.Errorf("field content in CallToolResult: required")
+	if _, ok := raw["Content"]; raw != nil && !ok {
+		return fmt.Errorf("field Content in CallToolResult: required")
 	}
 	type Plain CallToolResult
 	var plain Plain
@@ -565,14 +557,14 @@ type CreateMessageResult struct {
 	// to attach additional metadata to their responses.
 	Meta CreateMessageResultMeta `json:"_meta,omitempty" yaml:"_meta,omitempty" mapstructure:"_meta,omitempty"`
 
-	// Content corresponds to the JSON schema field "content".
-	Content interface{} `json:"content" yaml:"content" mapstructure:"content"`
+	// Content corresponds to the JSON schema field "Content".
+	Content interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
 
 	// The name of the model that generated the message.
 	Model string `json:"model" yaml:"model" mapstructure:"model"`
 
 	// Role corresponds to the JSON schema field "role".
-	Role Role `json:"role" yaml:"role" mapstructure:"role"`
+	Role tools.Role `json:"role" yaml:"role" mapstructure:"role"`
 
 	// The reason why sampling stopped, if known.
 	StopReason *string `json:"stopReason,omitempty" yaml:"stopReason,omitempty" mapstructure:"stopReason,omitempty"`
@@ -588,8 +580,8 @@ func (j *CreateMessageResult) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["content"]; raw != nil && !ok {
-		return fmt.Errorf("field content in CreateMessageResult: required")
+	if _, ok := raw["Content"]; raw != nil && !ok {
+		return fmt.Errorf("field Content in CreateMessageResult: required")
 	}
 	if _, ok := raw["model"]; raw != nil && !ok {
 		return fmt.Errorf("field model in CreateMessageResult: required")
@@ -609,27 +601,12 @@ func (j *CreateMessageResult) UnmarshalJSON(b []byte) error {
 // An opaque token used to represent a cursor for pagination.
 type Cursor string
 
-// The contents of a resource, embedded into a prompt or tool call result.
-//
-// It is up to the client how best to render embedded resources for the benefit
-// of the LLM and/or the user.
-type EmbeddedResource struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *EmbeddedResourceAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
-
-	// Resource corresponds to the JSON schema field "resource".
-	Resource interface{} `json:"resource" yaml:"resource" mapstructure:"resource"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `json:"type" yaml:"type" mapstructure:"type"`
-}
-
 type EmbeddedResourceAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate content useful for multiple
+	// It can include multiple entries to indicate Content useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
+	Audience []tools.Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
 	// Describes how important this data is for operating the server.
 	//
@@ -657,7 +634,7 @@ func (j *EmbeddedResourceAnnotations) UnmarshalJSON(b []byte) error {
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *EmbeddedResource) UnmarshalJSON(b []byte) error {
+func (j *tools.EmbeddedResource) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
@@ -668,12 +645,12 @@ func (j *EmbeddedResource) UnmarshalJSON(b []byte) error {
 	if _, ok := raw["type"]; raw != nil && !ok {
 		return fmt.Errorf("field type in EmbeddedResource: required")
 	}
-	type Plain EmbeddedResource
+	type Plain tools.EmbeddedResource
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	*j = EmbeddedResource(plain)
+	*j = tools.EmbeddedResource(plain)
 	return nil
 }
 
@@ -771,28 +748,12 @@ func (j *GetPromptResult) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// An image provided to or from an LLM.
-type ImageContent struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *ImageContentAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
-
-	// The base64-encoded image data.
-	Data string `json:"data" yaml:"data" mapstructure:"data"`
-
-	// The MIME type of the image. Different providers may support different image
-	// types.
-	MimeType string `json:"mimeType" yaml:"mimeType" mapstructure:"mimeType"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `json:"type" yaml:"type" mapstructure:"type"`
-}
-
 type ImageContentAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate content useful for multiple
+	// It can include multiple entries to indicate Content useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
+	Audience []tools.Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
 	// Describes how important this data is for operating the server.
 	//
@@ -820,7 +781,7 @@ func (j *ImageContentAnnotations) UnmarshalJSON(b []byte) error {
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *ImageContent) UnmarshalJSON(b []byte) error {
+func (j *tools.ImageContent) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
@@ -834,12 +795,12 @@ func (j *ImageContent) UnmarshalJSON(b []byte) error {
 	if _, ok := raw["type"]; raw != nil && !ok {
 		return fmt.Errorf("field type in ImageContent: required")
 	}
-	type Plain ImageContent
+	type Plain tools.ImageContent
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	*j = ImageContent(plain)
+	*j = tools.ImageContent(plain)
 	return nil
 }
 
@@ -2086,11 +2047,11 @@ func (j *PromptListChangedNotification) UnmarshalJSON(b []byte) error {
 // This is similar to `SamplingMessage`, but also supports the embedding of
 // resources from the MCP server.
 type PromptMessage struct {
-	// Content corresponds to the JSON schema field "content".
-	Content interface{} `json:"content" yaml:"content" mapstructure:"content"`
+	// Content corresponds to the JSON schema field "Content".
+	Content interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
 
 	// Role corresponds to the JSON schema field "role".
-	Role Role `json:"role" yaml:"role" mapstructure:"role"`
+	Role tools.Role `json:"role" yaml:"role" mapstructure:"role"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -2099,8 +2060,8 @@ func (j *PromptMessage) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["content"]; raw != nil && !ok {
-		return fmt.Errorf("field content in PromptMessage: required")
+	if _, ok := raw["Content"]; raw != nil && !ok {
+		return fmt.Errorf("field Content in PromptMessage: required")
 	}
 	if _, ok := raw["role"]; raw != nil && !ok {
 		return fmt.Errorf("field role in PromptMessage: required")
@@ -2317,9 +2278,9 @@ type Resource struct {
 type ResourceAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate content useful for multiple
+	// It can include multiple entries to indicate Content useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
+	Audience []tools.Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
 	// Describes how important this data is for operating the server.
 	//
@@ -2472,9 +2433,9 @@ type ResourceTemplate struct {
 type ResourceTemplateAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate content useful for multiple
+	// It can include multiple entries to indicate Content useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
+	Audience []tools.Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
 	// Describes how important this data is for operating the server.
 	//
@@ -2611,18 +2572,13 @@ type Result struct {
 // attach additional metadata to their responses.
 type ResultMeta map[string]interface{}
 
-type Role string
-
-const RoleAssistant Role = "assistant"
-const RoleUser Role = "user"
-
 var enumValues_Role = []interface{}{
 	"assistant",
 	"user",
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *Role) UnmarshalJSON(b []byte) error {
+func (j *tools.Role) UnmarshalJSON(b []byte) error {
 	var v string
 	if err := json.Unmarshal(b, &v); err != nil {
 		return err
@@ -2637,7 +2593,7 @@ func (j *Role) UnmarshalJSON(b []byte) error {
 	if !ok {
 		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_Role, v)
 	}
-	*j = Role(v)
+	*j = tools.Role(v)
 	return nil
 }
 
@@ -2718,11 +2674,11 @@ func (j *RootsListChangedNotification) UnmarshalJSON(b []byte) error {
 
 // Describes a message issued to or received from an LLM API.
 type SamplingMessage struct {
-	// Content corresponds to the JSON schema field "content".
-	Content interface{} `json:"content" yaml:"content" mapstructure:"content"`
+	// Content corresponds to the JSON schema field "Content".
+	Content interface{} `json:"Content" yaml:"Content" mapstructure:"Content"`
 
 	// Role corresponds to the JSON schema field "role".
-	Role Role `json:"role" yaml:"role" mapstructure:"role"`
+	Role tools.Role `json:"role" yaml:"role" mapstructure:"role"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -2731,8 +2687,8 @@ func (j *SamplingMessage) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
 	}
-	if _, ok := raw["content"]; raw != nil && !ok {
-		return fmt.Errorf("field content in SamplingMessage: required")
+	if _, ok := raw["Content"]; raw != nil && !ok {
+		return fmt.Errorf("field Content in SamplingMessage: required")
 	}
 	if _, ok := raw["role"]; raw != nil && !ok {
 		return fmt.Errorf("field role in SamplingMessage: required")
@@ -2909,24 +2865,12 @@ func (j *SubscribeRequest) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Text provided to or from an LLM.
-type TextContent struct {
-	// Annotations corresponds to the JSON schema field "annotations".
-	Annotations *TextContentAnnotations `json:"annotations,omitempty" yaml:"annotations,omitempty" mapstructure:"annotations,omitempty"`
-
-	// The text content of the message.
-	Text string `json:"text" yaml:"text" mapstructure:"text"`
-
-	// Type corresponds to the JSON schema field "type".
-	Type string `json:"type" yaml:"type" mapstructure:"type"`
-}
-
 type TextContentAnnotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
-	// It can include multiple entries to indicate content useful for multiple
+	// It can include multiple entries to indicate Content useful for multiple
 	// audiences (e.g., `["user", "assistant"]`).
-	Audience []Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
+	Audience []tools.Role `json:"audience,omitempty" yaml:"audience,omitempty" mapstructure:"audience,omitempty"`
 
 	// Describes how important this data is for operating the server.
 	//
@@ -2954,7 +2898,7 @@ func (j *TextContentAnnotations) UnmarshalJSON(b []byte) error {
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *TextContent) UnmarshalJSON(b []byte) error {
+func (j *tools.TextContent) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
@@ -2965,29 +2909,17 @@ func (j *TextContent) UnmarshalJSON(b []byte) error {
 	if _, ok := raw["type"]; raw != nil && !ok {
 		return fmt.Errorf("field type in TextContent: required")
 	}
-	type Plain TextContent
+	type Plain tools.TextContent
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	*j = TextContent(plain)
+	*j = tools.TextContent(plain)
 	return nil
 }
 
-type TextResourceContents struct {
-	// The MIME type of this resource, if known.
-	MimeType *string `json:"mimeType,omitempty" yaml:"mimeType,omitempty" mapstructure:"mimeType,omitempty"`
-
-	// The text of the item. This must only be set if the item can actually be
-	// represented as text (not binary data).
-	Text string `json:"text" yaml:"text" mapstructure:"text"`
-
-	// The URI of this resource.
-	Uri string `json:"uri" yaml:"uri" mapstructure:"uri"`
-}
-
 // UnmarshalJSON implements json.Unmarshaler.
-func (j *TextResourceContents) UnmarshalJSON(b []byte) error {
+func (j *tools.TextResourceContents) UnmarshalJSON(b []byte) error {
 	var raw map[string]interface{}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		return err
@@ -2998,12 +2930,12 @@ func (j *TextResourceContents) UnmarshalJSON(b []byte) error {
 	if _, ok := raw["uri"]; raw != nil && !ok {
 		return fmt.Errorf("field uri in TextResourceContents: required")
 	}
-	type Plain TextResourceContents
+	type Plain tools.TextResourceContents
 	var plain Plain
 	if err := json.Unmarshal(b, &plain); err != nil {
 		return err
 	}
-	*j = TextResourceContents(plain)
+	*j = tools.TextResourceContents(plain)
 	return nil
 }
 

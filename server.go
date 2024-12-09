@@ -37,7 +37,7 @@ type Content struct {
 
 type ToolResponse struct {
 	IsError bool      `json:"isError"`
-	Content []Content `json:"content"`
+	Content []Content `json:"Content"`
 }
 
 func NewServer(transport Transport) *Server {
