@@ -33,38 +33,41 @@ type BaseJSONRPCNotification struct {
 	Params json.RawMessage `json:"params,omitempty" yaml:"params,omitempty" mapstructure:"params,omitempty"`
 }
 
-type BaseMessageType int
+type BaseJSONRPCResponse struct {
+}
+
+type BaseMessageType string
 
 const (
-	BaseMessageTypeJSONRPCRequestType      BaseMessageType = 1
-	BaseMessageTypeJSONRPCNotificationType BaseMessageType = 2
+	BaseMessageTypeJSONRPCRequestType      BaseMessageType = "request"
+	BaseMessageTypeJSONRPCNotificationType BaseMessageType = "notification"
+	BaseMessgeTypeJSONRPCResponseType      BaseMessageType = "response"
 )
 
-type BaseMessage struct {
-	Type            BaseMessageType
-	RpcMessage      *BaseJSONRPCRequest
-	RpcNotification *BaseJSONRPCNotification
+type BaseJsonRpcMessage struct {
+	Type                BaseMessageType
+	JsonRpcRequest      *BaseJSONRPCRequest
+	JsonRpcNotification *BaseJSONRPCNotification
+	JsonRpcResponse     *BaseJSONRPCResponse
 }
 
-func NewBaseMessageNotification(notification BaseJSONRPCNotification) *BaseMessage {
-	return &BaseMessage{
-		Type:            BaseMessageTypeJSONRPCNotificationType,
-		RpcNotification: &notification,
+func NewBaseMessageNotification(notification BaseJSONRPCNotification) *BaseJsonRpcMessage {
+	return &BaseJsonRpcMessage{
+		Type:                BaseMessageTypeJSONRPCNotificationType,
+		JsonRpcNotification: &notification,
 	}
 }
 
-func NewBaseMessageRequest(request BaseJSONRPCRequest) *BaseMessage {
-	return &BaseMessage{
-		Type:       BaseMessageTypeJSONRPCRequestType,
-		RpcMessage: &request,
+func NewBaseMessageRequest(request BaseJSONRPCRequest) *BaseJsonRpcMessage {
+	return &BaseJsonRpcMessage{
+		Type:           BaseMessageTypeJSONRPCRequestType,
+		JsonRpcRequest: &request,
 	}
 }
 
-type BaseCallToolRequestParams struct {
-	// Arguments corresponds to the JSON schema field "arguments".
-	// It is stored as a []byte to enable efficient marshaling and unmarshaling into custom types later on in the protocol
-	Arguments json.RawMessage `json:"arguments" yaml:"arguments" mapstructure:"arguments"`
-
-	// Name corresponds to the JSON schema field "name".
-	Name string `json:"name" yaml:"name" mapstructure:"name"`
+func NewBaseMessageResponse(response BaseJSONRPCRequest) *BaseJsonRpcMessage {
+	return &BaseJsonRpcMessage{
+		Type:           BaseMessgeTypeJSONRPCResponseType,
+		JsonRpcRequest: &response,
+	}
 }

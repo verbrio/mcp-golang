@@ -29,5 +29,6 @@ type Transport interface {
 	SetErrorHandler(handler func(error))
 
 	// SetMessageHandler sets the callback for when a message (request or response) is received over the connection.
-	SetMessageHandler(handler func(message *BaseMessage))
+	// Partially deserializes the messages to pass a BaseJsonRpcMessage
+	SetMessageHandler(handler func(message *BaseJsonRpcMessage))
 }

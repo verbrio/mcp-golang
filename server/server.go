@@ -30,7 +30,7 @@ type Server struct {
 type tool struct {
 	Name            string
 	Description     string
-	Handler         func(transport2.BaseCallToolRequestParams) *tools.ToolResponseSent
+	Handler         func(BaseCallToolRequestParams) *tools.ToolResponseSent
 	ToolInputSchema *jsonschema.Schema
 }
 
@@ -71,11 +71,11 @@ func createJsonSchemaFromHandler(handler any) *jsonschema.Schema {
 // This takes a user provided handler and returns a wrapped handler which can be used to actually answer requests
 // Concretely, it will deserialize the arguments and call the user provided handler and then serialize the response
 // If the handler returns an error, it will be serialized and sent back as a tool error rather than a protocol error
-func createWrappedToolHandler(userHandler any) func(transport2.BaseCallToolRequestParams) *tools.ToolResponseSent {
+func createWrappedToolHandler(userHandler any) func(BaseCallToolRequestParams) *tools.ToolResponseSent {
 	handlerValue := reflect.ValueOf(userHandler)
 	handlerType := handlerValue.Type()
 	argumentType := handlerType.In(0)
-	return func(arguments transport2.BaseCallToolRequestParams) *tools.ToolResponseSent {
+	return func(arguments BaseCallToolRequestParams) *tools.ToolResponseSent {
 		// Instantiate a struct of the type of the arguments
 		if !reflect.New(argumentType).CanInterface() {
 			return tools.NewToolResponseSentError(fmt.Errorf("arguments must be a struct"))
@@ -153,7 +153,7 @@ func (s *Server) handleListTools(_ *transport2.BaseJSONRPCRequest, _ protocol2.R
 }
 
 func (s *Server) handleToolCalls(req *transport2.BaseJSONRPCRequest, _ protocol2.RequestHandlerExtra) (interface{}, error) {
-	params := transport2.BaseCallToolRequestParams{}
+	params := BaseCallToolRequestParams{}
 	// Instantiate a struct of the type of the arguments
 	err := json.Unmarshal(req.Params, &params)
 	if err != nil {

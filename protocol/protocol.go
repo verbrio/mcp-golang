@@ -177,12 +177,12 @@ func (p *Protocol) Connect(transport transport2.Transport) error {
 		p.handleError(err)
 	})
 
-	transport.SetMessageHandler(func(message *transport2.BaseMessage) {
+	transport.SetMessageHandler(func(message *transport2.BaseJsonRpcMessage) {
 		switch m := message.Type; {
 		case m == transport2.BaseMessageTypeJSONRPCRequestType:
-			p.handleRequest(message.RpcMessage)
+			p.handleRequest(message.JsonRpcRequest)
 		case m == transport2.BaseMessageTypeJSONRPCNotificationType:
-			p.handleNotification(message.RpcNotification)
+			p.handleNotification(message.JsonRpcNotification)
 		}
 	})
 

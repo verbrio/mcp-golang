@@ -20,7 +20,7 @@ type StdioServerTransport struct {
 	readBuf   *ReadBuffer
 	onClose   func()
 	onError   func(error)
-	onMessage func(message *transport.BaseMessage)
+	onMessage func(message *transport.BaseJsonRpcMessage)
 }
 
 // NewStdioServerTransport creates a new StdioServerTransport using os.Stdin and os.Stdout
@@ -96,7 +96,7 @@ func (t *StdioServerTransport) SetErrorHandler(handler func(error)) {
 }
 
 // SetMessageHandler sets the handler for incoming messages
-func (t *StdioServerTransport) SetMessageHandler(handler func(message *transport.BaseMessage)) {
+func (t *StdioServerTransport) SetMessageHandler(handler func(message *transport.BaseJsonRpcMessage)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.onMessage = handler
@@ -156,7 +156,7 @@ func (t *StdioServerTransport) handleError(err error) {
 	}
 }
 
-func (t *StdioServerTransport) handleMessage(msg *transport.BaseMessage) {
+func (t *StdioServerTransport) handleMessage(msg *transport.BaseJsonRpcMessage) {
 	t.mu.Lock()
 	handler := t.onMessage
 	t.mu.Unlock()

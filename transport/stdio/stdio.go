@@ -89,7 +89,7 @@ func (rb *ReadBuffer) Append(chunk []byte) {
 
 // ReadMessage reads a complete JSON-RPC message from the buffer.
 // Returns nil if no complete message is available.
-func (rb *ReadBuffer) ReadMessage() (*transport.BaseMessage, error) {
+func (rb *ReadBuffer) ReadMessage() (*transport.BaseJsonRpcMessage, error) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
 
@@ -119,7 +119,7 @@ func (rb *ReadBuffer) Clear() {
 }
 
 // deserializeMessage deserializes a JSON-RPC message from a string.
-func deserializeMessage(line string) (*transport.BaseMessage, error) {
+func deserializeMessage(line string) (*transport.BaseJsonRpcMessage, error) {
 	var request transport.BaseJSONRPCRequest
 	if err := json.Unmarshal([]byte(line), &request); err == nil {
 		//println("unmarshaled request:", spew.Sdump(request))

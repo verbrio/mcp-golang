@@ -21,7 +21,7 @@ func TestStdioServerTransport(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(1)
 
-		tr.SetMessageHandler(func(msg *transport.BaseMessage) {
+		tr.SetMessageHandler(func(msg *transport.BaseJsonRpcMessage) {
 			receivedMsg = msg
 			wg.Done()
 		})
