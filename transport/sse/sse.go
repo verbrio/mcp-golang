@@ -61,6 +61,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/metoro-io/mcp-golang/transport"
 	"net/http"
 	"sync"
 
@@ -83,7 +84,7 @@ type SSETransport struct {
 	// Callbacks
 	closeHandler   func()
 	errorHandler   func(error)
-	messageHandler func(JSONRPCMessage)
+	messageHandler func(message *transport.BaseJsonRpcMessage)
 }
 
 // NewSSETransport creates a new SSE transport with the given endpoint and response writer
