@@ -82,21 +82,32 @@ const (
 	ContentTypeText             ContentType = "text"
 	ContentTypeImage            ContentType = "image"
 	ContentTypeEmbeddedResource ContentType = "embedded-resource"
-	ContentTypeError            ContentType = "error"
 )
 
 // This is a union type of all the different ToolResponse that can be sent back to the client.
 // We allow creation through constructors only to make sure that the ToolResponse is valid.
 type ToolResponse struct {
+	Content []ToolResponseContent
+	Error   error
+}
+
+func NewToolReponse(content ...ToolResponseContent) *ToolResponse {
+	return &ToolResponse{
+		Content: content,
+	}
+}
+
+type ToolResponseContent struct {
 	Type             ContentType
 	TextContent      *TextContent
 	ImageContent     *ImageContent
 	EmbeddedResource *EmbeddedResource
 	Annotations      *ContentAnnotations
-	Error            error
 }
 
-func (c *ToolResponse) WithAnnotations(annotations ContentAnnotations) *ToolResponse {
+// Custom JSON marshaling for ToolResponse.
+
+func (c *ToolResponseContent) WithAnnotations(annotations ContentAnnotations) *ToolResponseContent {
 	c.Annotations = &annotations
 	return c
 }
@@ -105,34 +116,33 @@ func (c *ToolResponse) WithAnnotations(annotations ContentAnnotations) *ToolResp
 // This is used to create a result that will be returned to the client as an error for a tool call.
 func NewToolError(err error) *ToolResponse {
 	return &ToolResponse{
-		Type:  ContentTypeError,
 		Error: err,
 	}
 }
 
-// NewToolImageResponse creates a new ToolResponse that is an image.
+// NewToolImageResponseContent creates a new ToolResponse that is an image.
 // The given data is base64-encoded
-func NewToolImageResponse(base64EncodedStringData string, mimeType string) *ToolResponse {
-	return &ToolResponse{
+func NewToolImageResponseContent(base64EncodedStringData string, mimeType string) *ToolResponseContent {
+	return &ToolResponseContent{
 		Type:         ContentTypeImage,
 		ImageContent: &ImageContent{Data: base64EncodedStringData, MimeType: mimeType},
 	}
 }
 
-// NewToolTextResponse creates a new ToolResponse that is a simple text string.
+// NewToolTextResponseContent creates a new ToolResponse that is a simple text string.
 // The client will render this as a single string.
-func NewToolTextResponse(content string) *ToolResponse {
-	return &ToolResponse{
+func NewToolTextResponseContent(content string) *ToolResponseContent {
+	return &ToolResponseContent{
 		Type:        ContentTypeText,
 		TextContent: &TextContent{Text: content},
 	}
 }
 
-// NewToolBlobResourceResponse creates a new ToolResponse that is a blob of binary data.
+// NewToolBlobResourceResponseContent creates a new ToolResponse that is a blob of binary data.
 // The given data is base64-encoded; the client will decode it.
 // The client will render this as a blob; it will not be human-readable.
-func NewToolBlobResourceResponse(uri string, base64EncodedData string, mimeType string) *ToolResponse {
-	return &ToolResponse{
+func NewToolBlobResourceResponseContent(uri string, base64EncodedData string, mimeType string) *ToolResponseContent {
+	return &ToolResponseContent{
 		Type: ContentTypeEmbeddedResource,
 		EmbeddedResource: &EmbeddedResource{
 			EmbeddedResourceType: EmbeddedResourceTypeBlob,
@@ -144,11 +154,11 @@ func NewToolBlobResourceResponse(uri string, base64EncodedData string, mimeType 
 	}
 }
 
-// NewToolTextResourceResponse creates a new ToolResponse that is an embedded resource of type "text".
+// NewToolTextResourceResponseContent creates a new ToolResponse that is an embedded resource of type "text".
 // The given text is embedded in the response as a TextResourceContents, which
 // contains the given MIME type and URI. The text is not base64-encoded.
-func NewToolTextResourceResponse(uri string, text string, mimeType string) *ToolResponse {
-	return &ToolResponse{
+func NewToolTextResourceResponseContent(uri string, text string, mimeType string) *ToolResponseContent {
+	return &ToolResponseContent{
 		Type: ContentTypeEmbeddedResource,
 		EmbeddedResource: &EmbeddedResource{
 			EmbeddedResourceType: EmbeddedResourceTypeText,

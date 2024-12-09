@@ -31,7 +31,7 @@ func main() {
 
 	s := mcp.NewServer(mcp.NewStdioServerTransport())
 	err := s.Tool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*tools.ToolResponse, error) {
-		return tools.NewToolTextResponse(fmt.Sprintf("Hello, %s!", arguments.Submitter)), nil
+		return tools.NewToolTextResponseContent(fmt.Sprintf("Hello, %s!", arguments.Submitter)), nil
 	})
 	if err != nil {
 		panic(err)
