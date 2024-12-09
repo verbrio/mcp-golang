@@ -27,7 +27,7 @@ type Server struct {
 type ToolType struct {
 	Name            string
 	Description     string
-	Handler         func(BaseCallToolRequestParams) (tools.ToolResponse, error)
+	Handler         func(BaseCallToolRequestParams) *tools.ToolResponseSent
 	ToolInputSchema *jsonschema.Schema
 }
 
@@ -79,14 +79,14 @@ func (s *Server) Tool(name string, description string, handler any) error {
 
 	inputSchema := reflector.ReflectFromType(argumentType)
 
-	wrappedHandler := func(arguments BaseCallToolRequestParams) (tools.ToolResponse, error) {
+	wrappedHandler := func(arguments BaseCallToolRequestParams) *tools.ToolResponseSent {
 		// Instantiate a struct of the type of the arguments
 		unmarshaledArguments := reflect.New(argumentType).Interface()
 
 		// Unmarshal the JSON into the correct type
 		err = json.Unmarshal(arguments.Arguments, &unmarshaledArguments)
 		if err != nil {
-			return tools.ToolResponse{}, fmt.Errorf("failed to unmarshal arguments: %w", err)
+			return tools.NewToolResponseSentError(fmt.Errorf("failed to unmarshal arguments: %w", err))
 		}
 
 		// Need to dereference the unmarshaled arguments
@@ -96,15 +96,15 @@ func (s *Server) Tool(name string, description string, handler any) error {
 		output := handlerValue.Call([]reflect.Value{reflect.ValueOf(unmarshaledArguments)})
 
 		if len(output) != 2 {
-			return tools.ToolResponse{}, fmt.Errorf("tool handler must return exactly two values, got %d", len(output))
+			return tools.NewToolResponseSentError(fmt.Errorf("handler must return exactly two values, got %d", len(output)))
 		}
 
 		tool := output[0].Interface()
 		errorOut := output[1].Interface()
 		if errorOut == nil {
-			return tool.(tools.ToolResponse), nil
+			return tools.NewToolResponseSent(tool.(*tools.ToolResponse))
 		}
-		return tool.(tools.ToolResponse), errorOut.(error)
+		return tools.NewToolResponseSentError(errorOut.(error))
 	}
 
 	s.Tools[name] = &ToolType{
@@ -173,8 +173,7 @@ func (s *Server) Serve() error {
 			if name != params.Name {
 				continue
 			}
-			//println("Calling tool: " + name)
-			return tool.Handler(params)
+			return tool.Handler(params), nil
 		}
 		return ToolResponse{}, fmt.Errorf("unknown tool: %s", req.Method)
 	})

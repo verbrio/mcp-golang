@@ -107,11 +107,15 @@ const (
 // We allow creation through constructors only to make sure that the ToolResponse is valid.
 type ToolResponse struct {
 	Content []*ToolResponseContent
-	Error   error
+}
+
+type ToolResponseSent struct {
+	*ToolResponse
+	Error error
 }
 
 // Custom JSON marshaling for ToolResponse
-func (c ToolResponse) MarshalJSON() ([]byte, error) {
+func (c ToolResponseSent) MarshalJSON() ([]byte, error) {
 	if c.Error != nil {
 		errorText := c.Error.Error()
 		c.Content = []*ToolResponseContent{NewToolTextResponseContent(errorText)}
@@ -190,11 +194,18 @@ func (c *ToolResponseContent) WithAnnotations(annotations ContentAnnotations) *T
 	return c
 }
 
-// NewToolError creates a new ToolResponse that represents an error.
+// NewToolResponseSentError creates a new ToolResponse that represents an error.
 // This is used to create a result that will be returned to the client as an error for a tool call.
-func NewToolError(err error) *ToolResponse {
-	return &ToolResponse{
+func NewToolResponseSentError(err error) *ToolResponseSent {
+	return &ToolResponseSent{
 		Error: err,
+	}
+}
+
+// NewToolResponseSent creates a new ToolResponseSent
+func NewToolResponseSent(response *ToolResponse) *ToolResponseSent {
+	return &ToolResponseSent{
+		ToolResponse: response,
 	}
 }
 
