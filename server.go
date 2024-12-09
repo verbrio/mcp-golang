@@ -16,6 +16,26 @@ import (
 
 // The interface that we're looking to support is something like [gin](https://github.com/gin-gonic/gin)s interface
 
+var (
+	jsonSchemaReflector = jsonschema.Reflector{
+		BaseSchemaID:               "",
+		Anonymous:                  true,
+		AssignAnchor:               false,
+		AllowAdditionalProperties:  true,
+		RequiredFromJSONSchemaTags: false,
+		DoNotReference:             true,
+		ExpandedStruct:             true,
+		FieldNameTag:               "",
+		IgnoredTypes:               nil,
+		Lookup:                     nil,
+		Mapper:                     nil,
+		Namer:                      nil,
+		KeyNamer:                   nil,
+		AdditionalFields:           nil,
+		CommentMap:                 nil,
+	}
+)
+
 type Server struct {
 	transport          Transport
 	tools              map[string]*toolType
@@ -38,36 +58,13 @@ func NewServer(transport Transport) *Server {
 	}
 }
 
-var (
-	jsonSchemaReflector = jsonschema.Reflector{
-		BaseSchemaID:               "",
-		Anonymous:                  true,
-		AssignAnchor:               false,
-		AllowAdditionalProperties:  true,
-		RequiredFromJSONSchemaTags: false,
-		DoNotReference:             true,
-		ExpandedStruct:             true,
-		FieldNameTag:               "",
-		IgnoredTypes:               nil,
-		Lookup:                     nil,
-		Mapper:                     nil,
-		Namer:                      nil,
-		KeyNamer:                   nil,
-		AdditionalFields:           nil,
-		CommentMap:                 nil,
-	}
-)
-
 // RegisterTool registers a new tool with the server
 func (s *Server) RegisterTool(name string, description string, handler any) error {
 	err := validateHandler(handler)
 	if err != nil {
 		return err
 	}
-	handlerValue := reflect.ValueOf(handler)
-	handlerType := handlerValue.Type()
-	argumentType := handlerType.In(0)
-	inputSchema := jsonSchemaReflector.ReflectFromType(argumentType)
+	inputSchema := createJsonSchemaFromHandler(handler)
 
 	s.tools[name] = &toolType{
 		Name:            name,
@@ -77,6 +74,15 @@ func (s *Server) RegisterTool(name string, description string, handler any) erro
 	}
 
 	return nil
+}
+
+// Creates a full JSON schema from a user provided handler by introspecting the arguments
+func createJsonSchemaFromHandler(handler any) *jsonschema.Schema {
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+	argumentType := handlerType.In(0)
+	inputSchema := jsonSchemaReflector.ReflectFromType(argumentType)
+	return inputSchema
 }
 
 // This takes a user provided handler and returns a wrapped handler which can be used to actually answer requests
