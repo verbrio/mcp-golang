@@ -6,7 +6,7 @@ import (
 	"github.com/invopop/jsonschema"
 	internaltools "github.com/metoro-io/mcp-golang/internal/tools"
 	protocol2 "github.com/metoro-io/mcp-golang/protocol"
-	"github.com/metoro-io/mcp-golang/tools"
+	"github.com/metoro-io/mcp-golang/server/tools"
 	transport2 "github.com/metoro-io/mcp-golang/transport"
 	"reflect"
 )
