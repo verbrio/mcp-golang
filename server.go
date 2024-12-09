@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/invopop/jsonschema"
 	"github.com/metoro-io/mcp-golang/tools"
+	"github.com/metoro-io/mcp-golang/tools/internal"
 	"reflect"
 )
 
@@ -16,35 +17,15 @@ import (
 
 // The interface that we're looking to support is something like [gin](https://github.com/gin-gonic/gin)s interface
 
-var (
-	jsonSchemaReflector = jsonschema.Reflector{
-		BaseSchemaID:               "",
-		Anonymous:                  true,
-		AssignAnchor:               false,
-		AllowAdditionalProperties:  true,
-		RequiredFromJSONSchemaTags: false,
-		DoNotReference:             true,
-		ExpandedStruct:             true,
-		FieldNameTag:               "",
-		IgnoredTypes:               nil,
-		Lookup:                     nil,
-		Mapper:                     nil,
-		Namer:                      nil,
-		KeyNamer:                   nil,
-		AdditionalFields:           nil,
-		CommentMap:                 nil,
-	}
-)
-
 type Server struct {
 	transport          Transport
-	tools              map[string]*toolType
+	tools              map[string]*tool
 	serverInstructions *string
 	serverName         string
 	serverVersion      string
 }
 
-type toolType struct {
+type tool struct {
 	Name            string
 	Description     string
 	Handler         func(BaseCallToolRequestParams) *tools.ToolResponseSent
@@ -54,7 +35,7 @@ type toolType struct {
 func NewServer(transport Transport) *Server {
 	return &Server{
 		transport: transport,
-		tools:     make(map[string]*toolType),
+		tools:     make(map[string]*tool),
 	}
 }
 
@@ -66,7 +47,7 @@ func (s *Server) RegisterTool(name string, description string, handler any) erro
 	}
 	inputSchema := createJsonSchemaFromHandler(handler)
 
-	s.tools[name] = &toolType{
+	s.tools[name] = &tool{
 		Name:            name,
 		Description:     description,
 		Handler:         createWrappedHandler(handler),
@@ -136,66 +117,56 @@ func createWrappedHandler(userHandler any) func(BaseCallToolRequestParams) *tool
 
 func (s *Server) Serve() error {
 	protocol := NewProtocol(nil)
+	protocol.SetRequestHandler("initialize", s.handleInitialize)
+	protocol.SetRequestHandler("tools/list", s.handleListTools)
+	protocol.SetRequestHandler("tools/call", s.handleToolCalls)
+	return protocol.Connect(s.transport)
+}
 
-	protocol.SetRequestHandler("initialize", func(req *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
-		return InitializeResult{
-			Meta:            nil,
-			Capabilities:    s.generateCapabilities(),
-			Instructions:    s.serverInstructions,
-			ProtocolVersion: "2024-11-05",
-			ServerInfo: Implementation{
-				Name:    s.serverName,
-				Version: s.serverVersion,
-			},
-		}, nil
-	})
+func (s *Server) handleInitialize(_ *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+	return InitializeResult{
+		Meta:            nil,
+		Capabilities:    s.generateCapabilities(),
+		Instructions:    s.serverInstructions,
+		ProtocolVersion: "2024-11-05",
+		ServerInfo: Implementation{
+			Name:    s.serverName,
+			Version: s.serverVersion,
+		},
+	}, nil
+}
 
-	// Definition for a tool the client can call.
-	type ToolRetType struct {
-		// A human-readable description of the tool.
-		Description *string `json:"description,omitempty" yaml:"description,omitempty" mapstructure:"description,omitempty"`
+func (s *Server) handleListTools(_ *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+	return internal.ToolsResponse{
+		Tools: func() []internal.ToolRetType {
+			var tools []internal.ToolRetType
+			for _, tool := range s.tools {
+				tools = append(tools, internal.ToolRetType{
+					Name:        tool.Name,
+					Description: &tool.Description,
+					InputSchema: tool.ToolInputSchema,
+				})
+			}
+			return tools
+		}(),
+	}, nil
+}
 
-		// A JSON Schema object defining the expected parameters for the tool.
-		InputSchema interface{} `json:"inputSchema" yaml:"inputSchema" mapstructure:"inputSchema"`
-
-		// The name of the tool.
-		Name string `json:"name" yaml:"name" mapstructure:"name"`
+func (s *Server) handleToolCalls(req *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
+	params := BaseCallToolRequestParams{}
+	// Instantiate a struct of the type of the arguments
+	err := json.Unmarshal(req.Params, &params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal arguments: %w", err)
 	}
 
-	protocol.SetRequestHandler("tools/list", func(req *BaseJSONRPCRequest, _ RequestHandlerExtra) (interface{}, error) {
-		return map[string]interface{}{
-			"tools": func() []ToolRetType {
-				var tools []ToolRetType
-				for _, tool := range s.tools {
-					tools = append(tools, ToolRetType{
-						Name:        tool.Name,
-						Description: &tool.Description,
-						InputSchema: tool.ToolInputSchema,
-					})
-				}
-				return tools
-			}(),
-		}, nil
-	})
-
-	protocol.SetRequestHandler("tools/call", func(req *BaseJSONRPCRequest, extra RequestHandlerExtra) (interface{}, error) {
-		params := BaseCallToolRequestParams{}
-		// Instantiate a struct of the type of the arguments
-		err := json.Unmarshal(req.Params, &params)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal arguments: %w", err)
+	for name, tool := range s.tools {
+		if name != params.Name {
+			continue
 		}
-
-		for name, tool := range s.tools {
-			if name != params.Name {
-				continue
-			}
-			return tool.Handler(params), nil
-		}
-		return nil, fmt.Errorf("unknown tool: %s", req.Method)
-	})
-
-	return protocol.Connect(s.transport)
+		return tool.Handler(params), nil
+	}
+	return nil, fmt.Errorf("unknown tool: %s", req.Method)
 }
 
 func (s *Server) generateCapabilities() ServerCapabilities {
@@ -236,3 +207,23 @@ func validateHandler(handler any) error {
 
 	return nil
 }
+
+var (
+	jsonSchemaReflector = jsonschema.Reflector{
+		BaseSchemaID:               "",
+		Anonymous:                  true,
+		AssignAnchor:               false,
+		AllowAdditionalProperties:  true,
+		RequiredFromJSONSchemaTags: false,
+		DoNotReference:             true,
+		ExpandedStruct:             true,
+		FieldNameTag:               "",
+		IgnoredTypes:               nil,
+		Lookup:                     nil,
+		Mapper:                     nil,
+		Namer:                      nil,
+		KeyNamer:                   nil,
+		AdditionalFields:           nil,
+		CommentMap:                 nil,
+	}
+)
