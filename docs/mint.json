@@ -19,15 +19,14 @@
     "name": "Github Repo",
     "url": "https://github.com/metoro-io/mcp-golang"
   },
-  "tabs": [
-    {
-      "name": "API Reference",
-      "url": "api-reference"
-    }
-  ],
   "anchors": [
     {
-      "name": "Community",
+      "name": "Github",
+      "icon": "github",
+      "url": "https://github.com/metoro-io/mcp-golang"
+    },
+    {
+      "name": "Discord Community",
       "icon": "discord",
       "url": "https://discord.gg/33saRwE3pT"
     }
@@ -51,25 +50,11 @@
         "essentials/navigation",
         "essentials/reusable-snippets"
       ]
-    },
-    {
-      "group": "API Documentation",
-      "pages": [
-        "api-reference/introduction"
-      ]
-    },
-    {
-      "group": "Endpoint Examples",
-      "pages": [
-        "api-reference/endpoint/get",
-        "api-reference/endpoint/create",
-        "api-reference/endpoint/delete"
-      ]
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/mintlify",
-    "github": "https://github.com/mintlify",
-    "linkedin": "https://linkedin.com/company/mintlify"
+    "x": "https://x.com/metoro_ai",
+    "github": "https://github.com/metoro-io/mcp-golang",
+    "website": "https://https://metoro.io/"
   }
 }
