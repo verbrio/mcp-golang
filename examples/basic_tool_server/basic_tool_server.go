@@ -15,10 +15,6 @@ type MyFunctionsArguments struct {
 	Content   Content `json:"content" jsonschema:"required,description=The content of the message"`
 }
 
-type ToggleLights struct {
-	EntityID string `json:"entity_id,omitempty"`
-}
-
 func main() {
 	done := make(chan struct{})
 
