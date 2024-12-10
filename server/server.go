@@ -45,7 +45,7 @@ func (c resourceResponseSent) MarshalJSON() ([]byte, error) {
 		errorText := c.Error.Error()
 		c.Response = NewResourceResponse(NewTextEmbeddedResource(c.Uri, errorText, "text/plain"))
 	}
-	return json.Marshal(c)
+	return json.Marshal(c.Response)
 }
 
 type resourceResponseSent struct {
@@ -403,7 +403,9 @@ func (s *Server) Serve() error {
 	protocol.SetRequestHandler("tools/list", s.handleListTools)
 	protocol.SetRequestHandler("tools/call", s.handleToolCalls)
 	protocol.SetRequestHandler("prompts/list", s.handleListPrompts)
+	protocol.SetRequestHandler("prompts/get", s.handlePromptCalls)
 	protocol.SetRequestHandler("resources/list", s.handleListResources)
+	protocol.SetRequestHandler("resources/read", s.handleResourceCalls)
 	return protocol.Connect(s.transport)
 }
 
@@ -495,6 +497,40 @@ func (s *Server) handleListResources(request *transport2.BaseJSONRPCRequest, ext
 			return resources
 		}(),
 	}, nil
+}
+
+func (s *Server) handlePromptCalls(req *transport2.BaseJSONRPCRequest, extra protocol2.RequestHandlerExtra) (interface{}, error) {
+	params := BaseGetPromptRequestParamsArguments{}
+	// Instantiate a struct of the type of the arguments
+	err := json.Unmarshal(req.Params, &params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal arguments: %w", err)
+	}
+
+	for name, prompter := range s.prompts {
+		if name != params.Name {
+			continue
+		}
+		return prompter.Handler(params), nil
+	}
+	return nil, fmt.Errorf("unknown prompt: %s", req.Method)
+}
+
+func (s *Server) handleResourceCalls(req *transport2.BaseJSONRPCRequest, extra protocol2.RequestHandlerExtra) (interface{}, error) {
+	params := ReadResourceRequestParams{}
+	// Instantiate a struct of the type of the arguments
+	err := json.Unmarshal(req.Params, &params)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal arguments: %w", err)
+	}
+
+	for name, resource := range s.resources {
+		if name != params.Uri {
+			continue
+		}
+		return resource.Handler(), nil
+	}
+	return nil, fmt.Errorf("unknown prompt: %s", req.Method)
 }
 
 func validateToolHandler(handler any) error {

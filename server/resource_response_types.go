@@ -1,5 +1,11 @@
 package server
 
+type ReadResourceRequestParams struct {
+	// The URI of the resource to read. The URI can use any protocol; it is up to the
+	// server how to interpret it.
+	Uri string `json:"uri" yaml:"uri" mapstructure:"uri"`
+}
+
 // The server's response to a resources/list request from the client.
 type ListResourcesResult struct {
 	// Resources corresponds to the JSON schema field "resources".

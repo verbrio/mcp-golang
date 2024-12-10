@@ -41,6 +41,10 @@ func main() {
 		return server.NewResourceResponse(server.NewTextEmbeddedResource("test://resource", "This is a test resource", "application/json")), nil
 	})
 
+	err = s.RegisterResource("file://app_logs", "app_logs", "The app logs", "text/plain", func() (*server.ResourceResponse, error) {
+		return server.NewResourceResponse(server.NewTextEmbeddedResource("file://app_logs", "This is a test resource", "text/plain")), nil
+	})
+
 	err = s.Serve()
 	if err != nil {
 		panic(err)
