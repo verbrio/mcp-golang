@@ -59,7 +59,13 @@ You can use raw go structs as the input to your tools, the library handles gener
 - The library aims to support servers first and foremost, when the server features are stable, we will work on adding client support.
 
 ## Contributions
+
 Contributions are more than welcome! Please check out [our contribution guidelines](./CONTRIBUTING.md).
+
+## Discord
+
+Got any suggestions, have a question on the api or usage? Ask on the [discord server](https://discord.gg/33saRwE3pT). 
+A maintainer will be happy to help you out.
 
 ## Server Feature Implementation
 
