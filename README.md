@@ -20,6 +20,8 @@
 
 MCP golang is an unofficial implementaion of the [Model Context Protocol](https://modelcontextprotocol.io/) in Go.
 
+Docs can be found at [https://mcpgolang.com](https://mcpgolang.com)
+
 ## Example Usage
 
 ```go
@@ -52,12 +54,18 @@ You can use raw go structs as the input to your tools, the library handles gener
 
 ## Library Goals and non-goals
 
-- The libary api should be simple and easy to use for basic cases of the protocol but we are explicitly aiming to support production use cases first.
+- The libary api should be simple and easy to use for basic cases of the protocol but we are explicitly aiming to support production use cases firs
 - Where complexity arises, the library will have sane defaults and allow the user to override them if needed.
 - The library aims to support servers first and foremost, when the server features are stable, we will work on adding client support.
 
 ## Contributions
+
 Contributions are more than welcome! Please check out [our contribution guidelines](./CONTRIBUTING.md).
+
+## Discord
+
+Got any suggestions, have a question on the api or usage? Ask on the [discord server](https://discord.gg/33saRwE3pT). 
+A maintainer will be happy to help you out.
 
 ## Server Feature Implementation
 
