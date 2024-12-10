@@ -1,4 +1,4 @@
-package tools
+package server
 
 import (
 	"encoding/json"
@@ -97,45 +97,13 @@ func (c EmbeddedResource) MarshalJSON() ([]byte, error) {
 type ContentType string
 
 const (
-	// The value is the value of the "type" field in the ToolResponseContent so do not change
+	// The value is the value of the "type" field in the Content so do not change
 	ContentTypeText             ContentType = "text"
 	ContentTypeImage            ContentType = "image"
 	ContentTypeEmbeddedResource ContentType = "resource"
 )
 
-// This is a union type of all the different ToolResponse that can be sent back to the client.
-// We allow creation through constructors only to make sure that the ToolResponse is valid.
-type ToolResponse struct {
-	Content []*ToolResponseContent
-}
-
-type ToolResponseSent struct {
-	Response *ToolResponse
-	Error    error
-}
-
-// Custom JSON marshaling for ToolResponse
-func (c ToolResponseSent) MarshalJSON() ([]byte, error) {
-	if c.Error != nil {
-		errorText := c.Error.Error()
-		c.Response = NewToolReponse(NewToolTextResponseContent(errorText))
-	}
-	return json.Marshal(struct {
-		Content []*ToolResponseContent `json:"content" yaml:"content" mapstructure:"content"`
-		IsError bool                   `json:"isError" yaml:"isError" mapstructure:"isError"`
-	}{
-		Content: c.Response.Content,
-		IsError: c.Error != nil,
-	})
-}
-
-func NewToolReponse(content ...*ToolResponseContent) *ToolResponse {
-	return &ToolResponse{
-		Content: content,
-	}
-}
-
-type ToolResponseContent struct {
+type Content struct {
 	Type             ContentType
 	TextContent      *TextContent
 	ImageContent     *ImageContent
@@ -144,7 +112,7 @@ type ToolResponseContent struct {
 }
 
 // Custom JSON marshaling for ToolResponse Content
-func (c ToolResponseContent) MarshalJSON() ([]byte, error) {
+func (c Content) MarshalJSON() ([]byte, error) {
 	rawJson := []byte{}
 
 	switch c.Type {
@@ -189,49 +157,49 @@ func (c ToolResponseContent) MarshalJSON() ([]byte, error) {
 	return rawJson, nil
 }
 
-func (c *ToolResponseContent) WithAnnotations(annotations ContentAnnotations) *ToolResponseContent {
+func (c *Content) WithAnnotations(annotations ContentAnnotations) *Content {
 	c.Annotations = &annotations
 	return c
 }
 
-// NewToolResponseSentError creates a new ToolResponse that represents an error.
+// newToolResponseSentError creates a new ToolResponse that represents an error.
 // This is used to create a result that will be returned to the client as an error for a tool call.
-func NewToolResponseSentError(err error) *ToolResponseSent {
-	return &ToolResponseSent{
+func newToolResponseSentError(err error) *toolResponseSent {
+	return &toolResponseSent{
 		Error: err,
 	}
 }
 
-// NewToolResponseSent creates a new ToolResponseSent
-func NewToolResponseSent(response *ToolResponse) *ToolResponseSent {
-	return &ToolResponseSent{
+// newToolResponseSent creates a new toolResponseSent
+func newToolResponseSent(response *ToolResponse) *toolResponseSent {
+	return &toolResponseSent{
 		Response: response,
 	}
 }
 
-// NewToolImageResponseContent creates a new ToolResponse that is an image.
+// NewImageContent creates a new ToolResponse that is an image.
 // The given data is base64-encoded
-func NewToolImageResponseContent(base64EncodedStringData string, mimeType string) *ToolResponseContent {
-	return &ToolResponseContent{
+func NewImageContent(base64EncodedStringData string, mimeType string) *Content {
+	return &Content{
 		Type:         ContentTypeImage,
 		ImageContent: &ImageContent{Data: base64EncodedStringData, MimeType: mimeType},
 	}
 }
 
-// NewToolTextResponseContent creates a new ToolResponse that is a simple text string.
+// NewTextContent creates a new ToolResponse that is a simple text string.
 // The client will render this as a single string.
-func NewToolTextResponseContent(content string) *ToolResponseContent {
-	return &ToolResponseContent{
+func NewTextContent(content string) *Content {
+	return &Content{
 		Type:        ContentTypeText,
 		TextContent: &TextContent{Text: content},
 	}
 }
 
-// NewToolBlobResourceResponseContent creates a new ToolResponse that is a blob of binary data.
+// NewBlobResourceContent creates a new ToolResponse that is a blob of binary data.
 // The given data is base64-encoded; the client will decode it.
 // The client will render this as a blob; it will not be human-readable.
-func NewToolBlobResourceResponseContent(uri string, base64EncodedData string, mimeType string) *ToolResponseContent {
-	return &ToolResponseContent{
+func NewBlobResourceContent(uri string, base64EncodedData string, mimeType string) *Content {
+	return &Content{
 		Type: ContentTypeEmbeddedResource,
 		EmbeddedResource: &EmbeddedResource{
 			EmbeddedResourceType: EmbeddedResourceTypeBlob,
@@ -243,11 +211,11 @@ func NewToolBlobResourceResponseContent(uri string, base64EncodedData string, mi
 	}
 }
 
-// NewToolTextResourceResponseContent creates a new ToolResponse that is an embedded resource of type "text".
+// NewTextResourceContent creates a new ToolResponse that is an embedded resource of type "text".
 // The given text is embedded in the response as a TextResourceContents, which
 // contains the given MIME type and URI. The text is not base64-encoded.
-func NewToolTextResourceResponseContent(uri string, text string, mimeType string) *ToolResponseContent {
-	return &ToolResponseContent{
+func NewTextResourceContent(uri string, text string, mimeType string) *Content {
+	return &Content{
 		Type: ContentTypeEmbeddedResource,
 		EmbeddedResource: &EmbeddedResource{
 			EmbeddedResourceType: EmbeddedResourceTypeText,
