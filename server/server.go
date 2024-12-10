@@ -39,6 +39,34 @@ func (c toolResponseSent) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// Custom JSON marshaling for ToolResponse
+func (c resourceResponseSent) MarshalJSON() ([]byte, error) {
+	if c.Error != nil {
+		errorText := c.Error.Error()
+		c.Response = NewResourceResponse(NewTextEmbeddedResource(c.Uri, errorText, "text/plain"))
+	}
+	return json.Marshal(c)
+}
+
+type resourceResponseSent struct {
+	Response *ResourceResponse
+	Uri      string
+	Error    error
+}
+
+func newResourceResponseSentError(err error) *resourceResponseSent {
+	return &resourceResponseSent{
+		Error: err,
+	}
+}
+
+// newToolResponseSent creates a new toolResponseSent
+func newResourceResponseSent(response *ResourceResponse) *resourceResponseSent {
+	return &resourceResponseSent{
+		Response: response,
+	}
+}
+
 type promptResponseSent struct {
 	Response *PromptResponse
 	Error    error
@@ -57,7 +85,7 @@ func newPromptResponseSent(response *PromptResponse) *promptResponseSent {
 	}
 }
 
-// Custom JSON marshaling for ToolResponse
+// Custom JSON marshaling for PromptResponse
 func (c promptResponseSent) MarshalJSON() ([]byte, error) {
 	if c.Error != nil {
 		errorText := c.Error.Error()
@@ -70,6 +98,7 @@ type Server struct {
 	transport          transport2.Transport
 	tools              map[string]*tool
 	prompts            map[string]*prompt
+	resources          map[string]*resource
 	serverInstructions *string
 	serverName         string
 	serverVersion      string
@@ -89,11 +118,20 @@ type tool struct {
 	ToolInputSchema *jsonschema.Schema
 }
 
+type resource struct {
+	Name        string
+	Description string
+	Uri         string
+	mimeType    string
+	Handler     func() *resourceResponseSent
+}
+
 func NewServer(transport transport2.Transport) *Server {
 	return &Server{
 		transport: transport,
 		tools:     make(map[string]*tool),
 		prompts:   make(map[string]*prompt),
+		resources: make(map[string]*resource),
 	}
 }
 
@@ -112,6 +150,65 @@ func (s *Server) RegisterTool(name string, description string, handler any) erro
 		ToolInputSchema: inputSchema,
 	}
 
+	return nil
+}
+
+func (s *Server) RegisterResource(uri string, name string, description string, mimeType string, handler any) error {
+	err := validateResourceHandler(handler)
+	if err != nil {
+		panic(err)
+	}
+	s.resources[uri] = &resource{
+		Name:        name,
+		Description: description,
+		Uri:         uri,
+		mimeType:    mimeType,
+		Handler:     createWrappedResourceHandler(handler),
+	}
+	return nil
+}
+
+func createWrappedResourceHandler(userHandler any) func() *resourceResponseSent {
+	handlerValue := reflect.ValueOf(userHandler)
+	return func() *resourceResponseSent {
+		// Call the handler with no arguments
+		output := handlerValue.Call([]reflect.Value{})
+
+		if len(output) != 2 {
+			return newResourceResponseSentError(fmt.Errorf("handler must return exactly two values, got %d", len(output)))
+		}
+
+		if !output[0].CanInterface() {
+			return newResourceResponseSentError(fmt.Errorf("handler must return a struct, got %s", output[0].Type().Name()))
+		}
+		promptR := output[0].Interface()
+		if !output[1].CanInterface() {
+			return newResourceResponseSentError(fmt.Errorf("handler must return an error, got %s", output[1].Type().Name()))
+		}
+		errorOut := output[1].Interface()
+		if errorOut == nil {
+			return newResourceResponseSent(promptR.(*ResourceResponse))
+		}
+		return newResourceResponseSentError(errorOut.(error))
+	}
+}
+
+// We just want to check that handler takes no arguments and returns a ResourceResponse and an error
+func validateResourceHandler(handler any) error {
+	handlerValue := reflect.ValueOf(handler)
+	handlerType := handlerValue.Type()
+	if handlerType.NumIn() != 0 {
+		return fmt.Errorf("handler must take no arguments, got %d", handlerType.NumIn())
+	}
+	if handlerType.NumOut() != 2 {
+		return fmt.Errorf("handler must return exactly two values, got %d", handlerType.NumOut())
+	}
+	//if handlerType.Out(0) != reflect.TypeOf((*ResourceResponse)(nil)).Elem() {
+	//	return fmt.Errorf("handler must return ResourceResponse, got %s", handlerType.Out(0).Name())
+	//}
+	//if handlerType.Out(1) != reflect.TypeOf((*error)(nil)).Elem() {
+	//	return fmt.Errorf("handler must return error, got %s", handlerType.Out(1).Name())
+	//}
 	return nil
 }
 
@@ -306,6 +403,7 @@ func (s *Server) Serve() error {
 	protocol.SetRequestHandler("tools/list", s.handleListTools)
 	protocol.SetRequestHandler("tools/call", s.handleToolCalls)
 	protocol.SetRequestHandler("prompts/list", s.handleListPrompts)
+	protocol.SetRequestHandler("resources/list", s.handleListResources)
 	return protocol.Connect(s.transport)
 }
 
@@ -377,6 +475,24 @@ func (s *Server) handleListPrompts(request *transport2.BaseJSONRPCRequest, extra
 				prompts = append(prompts, prompt.PromptInputSchema)
 			}
 			return prompts
+		}(),
+	}, nil
+}
+
+func (s *Server) handleListResources(request *transport2.BaseJSONRPCRequest, extra protocol2.RequestHandlerExtra) (interface{}, error) {
+	return ListResourcesResult{
+		Resources: func() []*ResourceSchema {
+			var resources []*ResourceSchema
+			for _, resource := range s.resources {
+				resources = append(resources, &ResourceSchema{
+					Annotations: nil,
+					Description: &resource.Description,
+					MimeType:    &resource.mimeType,
+					Name:        resource.Name,
+					Uri:         resource.Uri,
+				})
+			}
+			return resources
 		}(),
 	}, nil
 }

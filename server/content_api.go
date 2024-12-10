@@ -11,7 +11,7 @@ type Role string
 const RoleAssistant Role = "assistant"
 const RoleUser Role = "user"
 
-type ContentAnnotations struct {
+type Annotations struct {
 	// Describes who the intended customer of this object or data is.
 	//
 	// It can include multiple entries to indicate ToolResponse useful for multiple
@@ -108,7 +108,7 @@ type Content struct {
 	TextContent      *TextContent
 	ImageContent     *ImageContent
 	EmbeddedResource *EmbeddedResource
-	Annotations      *ContentAnnotations
+	Annotations      *Annotations
 }
 
 // Custom JSON marshaling for ToolResponse Content
@@ -157,7 +157,7 @@ func (c Content) MarshalJSON() ([]byte, error) {
 	return rawJson, nil
 }
 
-func (c *Content) WithAnnotations(annotations ContentAnnotations) *Content {
+func (c *Content) WithAnnotations(annotations Annotations) *Content {
 	c.Annotations = &annotations
 	return c
 }
@@ -223,4 +223,22 @@ func NewTextResourceContent(uri string, text string, mimeType string) *Content {
 				MimeType: &mimeType, Text: text, Uri: uri,
 			}},
 	}
+}
+
+func NewTextEmbeddedResource(uri string, text string, mimeType string) *EmbeddedResource {
+	return &EmbeddedResource{
+		EmbeddedResourceType: EmbeddedResourceTypeText,
+		TextResourceContents: &TextResourceContents{
+			MimeType: &mimeType, Text: text, Uri: uri,
+		}}
+}
+
+func NewBlobEmbeddedResource(uri string, base64EncodedData string, mimeType string) *EmbeddedResource {
+	return &EmbeddedResource{
+		EmbeddedResourceType: EmbeddedResourceTypeBlob,
+		BlobResourceContents: &BlobResourceContents{
+			Blob:     base64EncodedData,
+			MimeType: &mimeType,
+			Uri:      uri,
+		}}
 }
