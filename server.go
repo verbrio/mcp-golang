@@ -4,15 +4,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"sort"
+	"strings"
+
 	"github.com/invopop/jsonschema"
 	"github.com/metoro-io/mcp-golang/internal/datastructures"
 	"github.com/metoro-io/mcp-golang/internal/protocol"
 	"github.com/metoro-io/mcp-golang/internal/tools"
 	"github.com/metoro-io/mcp-golang/transport"
 	"github.com/pkg/errors"
-	"reflect"
-	"sort"
-	"strings"
 )
 
 // Here we define the actual MCP server that users will create and run
@@ -115,7 +116,7 @@ type prompt struct {
 	Name              string
 	Description       string
 	Handler           func(baseGetPromptRequestParamsArguments) *promptResponseSent
-	PromptInputSchema *promptSchema
+	PromptInputSchema *PromptSchema
 }
 
 type tool struct {
@@ -358,13 +359,13 @@ func createWrappedPromptHandler(userHandler any) func(baseGetPromptRequestParams
 // Description *string `json:"description" jsonschema:"description=The description to submit"`
 // }
 // Then we get the jsonschema for the struct where Title is a required field and Description is an optional field
-func createPromptSchemaFromHandler(handler any) *promptSchema {
+func createPromptSchemaFromHandler(handler any) *PromptSchema {
 	handlerValue := reflect.ValueOf(handler)
 	handlerType := handlerValue.Type()
 	argumentType := handlerType.In(0)
 
-	promptSchema := promptSchema{
-		Arguments: make([]promptSchemaArgument, argumentType.NumField()),
+	promptSchema := PromptSchema{
+		Arguments: make([]PromptSchemaArgument, argumentType.NumField()),
 	}
 
 	for i := 0; i < argumentType.NumField(); i++ {
@@ -384,7 +385,7 @@ func createPromptSchemaFromHandler(handler any) *promptSchema {
 			}
 		}
 
-		promptSchema.Arguments[i] = promptSchemaArgument{
+		promptSchema.Arguments[i] = PromptSchemaArgument{
 			Name:        fieldName,
 			Description: description,
 			Required:    &required,
@@ -476,7 +477,7 @@ func createWrappedToolHandler(userHandler any) func(baseCallToolRequestParams) *
 }
 
 func (s *Server) Serve() error {
-	if s.isRunning == true {
+	if s.isRunning {
 		return fmt.Errorf("server is already running")
 	}
 	pr := s.protocol
@@ -498,7 +499,7 @@ func (s *Server) Serve() error {
 }
 
 func (s *Server) handleInitialize(_ *transport.BaseJSONRPCRequest, _ protocol.RequestHandlerExtra) (transport.JsonRpcBody, error) {
-	return initializeResult{
+	return InitializeResponse{
 		Meta:            nil,
 		Capabilities:    s.generateCapabilities(),
 		Instructions:    s.serverInstructions,
@@ -607,21 +608,21 @@ func (s *Server) handleToolCalls(req *transport.BaseJSONRPCRequest, _ protocol.R
 	}
 	return toolToUse.Handler(params), nil
 }
-func (s *Server) generateCapabilities() serverCapabilities {
+func (s *Server) generateCapabilities() ServerCapabilities {
 	t := false
-	return serverCapabilities{
-		Tools: func() *serverCapabilitiesTools {
-			return &serverCapabilitiesTools{
+	return ServerCapabilities{
+		Tools: func() *ServerCapabilitiesTools {
+			return &ServerCapabilitiesTools{
 				ListChanged: &t,
 			}
 		}(),
-		Prompts: func() *serverCapabilitiesPrompts {
-			return &serverCapabilitiesPrompts{
+		Prompts: func() *ServerCapabilitiesPrompts {
+			return &ServerCapabilitiesPrompts{
 				ListChanged: &t,
 			}
 		}(),
-		Resources: func() *serverCapabilitiesResources {
-			return &serverCapabilitiesResources{
+		Resources: func() *ServerCapabilitiesResources {
+			return &ServerCapabilitiesResources{
 				ListChanged: &t,
 			}
 		}(),
@@ -671,14 +672,15 @@ func (s *Server) handleListPrompts(request *transport.BaseJSONRPCRequest, extra 
 		}
 	}
 
-	promptsToReturn := make([]*promptSchema, 0)
+	promptsToReturn := make([]*PromptSchema, 0)
 	for i := startPosition; i < endPosition; i++ {
 		schema := orderedPrompts[i].PromptInputSchema
+		schema.Description = &orderedPrompts[i].Description
 		schema.Name = orderedPrompts[i].Name
 		promptsToReturn = append(promptsToReturn, schema)
 	}
 
-	return listPromptsResult{
+	return ListPromptsResponse{
 		Prompts: promptsToReturn,
 		NextCursor: func() *string {
 			if s.paginationLimit != nil && len(promptsToReturn) >= *s.paginationLimit {
@@ -734,10 +736,10 @@ func (s *Server) handleListResources(request *transport.BaseJSONRPCRequest, extr
 		}
 	}
 
-	resourcesToReturn := make([]*resourceSchema, 0)
+	resourcesToReturn := make([]*ResourceSchema, 0)
 	for i := startPosition; i < endPosition; i++ {
 		r := orderedResources[i]
-		resourcesToReturn = append(resourcesToReturn, &resourceSchema{
+		resourcesToReturn = append(resourcesToReturn, &ResourceSchema{
 			Annotations: nil,
 			Description: &r.Description,
 			MimeType:    &r.mimeType,
@@ -746,7 +748,7 @@ func (s *Server) handleListResources(request *transport.BaseJSONRPCRequest, extr
 		})
 	}
 
-	return listResourcesResult{
+	return ListResourcesResponse{
 		Resources: resourcesToReturn,
 		NextCursor: func() *string {
 			if s.paginationLimit != nil && len(resourcesToReturn) >= *s.paginationLimit {
